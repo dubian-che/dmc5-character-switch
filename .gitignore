@@ -15,3 +15,4 @@ deliveries/
 *.zip
 .env
 .env.*
+work/*.png
