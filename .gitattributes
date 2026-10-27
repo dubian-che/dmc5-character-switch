@@ -1,0 +1,3 @@
+# Preserve byte-for-byte native fixture hashes and PowerShell BOMs.
+* -text
+*.md text eol=lf

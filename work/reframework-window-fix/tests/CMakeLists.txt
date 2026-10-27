@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.15)
+project(RFChainTests LANGUAGES CXX)
+add_executable(hook_test hook_test.cpp WindowsMessageHook.cpp)
+target_compile_features(hook_test PRIVATE cxx_std_17)
+target_compile_definitions(hook_test PRIVATE UNICODE _UNICODE)
+target_include_directories(hook_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(hook_test PRIVATE user32)

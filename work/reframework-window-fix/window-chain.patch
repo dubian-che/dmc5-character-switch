@@ -1,0 +1,47 @@
+diff --git a/src/REFramework.cpp b/src/REFramework.cpp
+index 18ac5bd..6cdf21b 100644
+--- a/src/REFramework.cpp
++++ b/src/REFramework.cpp
+@@ -132,8 +132,10 @@ void REFramework::hook_monitor() {
+         }
+ 
+         if (m_initialized && m_wnd != 0 && now - m_last_message_time > std::chrono::seconds(5)) {
+-            if (m_windows_message_hook != nullptr && m_windows_message_hook->is_hook_intact()) {
+-                spdlog::info("Windows message hook is still intact, ignoring...");
++            // Preserve a live registration even when another subclass is on top.
++            // The top WNDPROC alone cannot tell us whether our link is broken.
++            if (m_windows_message_hook != nullptr && m_windows_message_hook->is_valid_for(m_wnd)) {
++                spdlog::info("Windows message registration preserved; automatic rewrapping disabled");
+                 m_last_message_time = now;
+                 m_last_sendmessage_time = now;
+                 m_sent_message = false;
+@@ -2464,6 +2466,12 @@ bool REFramework::initialize_windows_message_hook() {
+ 
+     if (m_first_frame || m_message_hook_requested || m_windows_message_hook == nullptr) {
+         m_last_message_time = std::chrono::steady_clock::now();
++        // Keep the original forwarding link while this window registration
++        // exists. Rewrapping an external subclass can create RF -> external -> RF.
++        if (m_windows_message_hook != nullptr && m_windows_message_hook->is_valid_for(m_wnd)) {
++            m_message_hook_requested = false;
++            return true;
++        }
+         m_windows_message_hook.reset();
+         m_windows_message_hook = std::make_unique<WindowsMessageHook>(m_wnd);
+         m_windows_message_hook->on_message = [this](auto wnd, auto msg, auto w_param, auto l_param) {
+diff --git a/src/WindowsMessageHook.hpp b/src/WindowsMessageHook.hpp
+index 096668c..f1be342 100644
+--- a/src/WindowsMessageHook.hpp
++++ b/src/WindowsMessageHook.hpp
+@@ -39,6 +39,12 @@ public:
+ 
+     bool is_hook_intact();
+ 
++    // Another subclass may wrap our window_proc. Replacing this object then
++    // loses its original-proc link and can make the combined chain circular.
++    bool is_valid_for(HWND wnd) const {
++        return wnd != nullptr && m_wnd == wnd && m_original_proc != nullptr;
++    }
++
+ private:
+     HWND m_wnd;
+     WNDPROC m_original_proc;

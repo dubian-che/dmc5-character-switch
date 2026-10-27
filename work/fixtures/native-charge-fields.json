@@ -1,0 +1,21 @@
+{
+  "0": [
+    "GauntletCharge",
+    "BlueRoseCharge",
+    "ReinforcementCharge",
+    "RedQueenCharge"
+  ],
+  "1": [
+    "<chargeWeaponS00>k__BackingField",
+    "<chargeWeaponS01>k__BackingField",
+    "<chargeWeaponL00>k__BackingField",
+    "<chargeWeaponL01>k__BackingField",
+    "<chargeSheath>k__BackingField"
+  ],
+  "4": [
+    "<JudgeMentCutCharge>k__BackingField",
+    "<DoppelJudgeMentCutCharge>k__BackingField",
+    "<BeowulfCharge>k__BackingField",
+    "<RoundTripCharge>k__BackingField"
+  ]
+}

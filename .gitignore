@@ -1,0 +1,17 @@
+# Generated outputs and local environments
+dist/
+.venv/
+__pycache__/
+*.pyc
+work/python-deps/
+work/launcher-tests/
+work/support-tests/
+work/*.json
+work/*.log
+backups/
+deliveries/
+*.dmp
+*.mdmp
+*.zip
+.env
+.env.*
