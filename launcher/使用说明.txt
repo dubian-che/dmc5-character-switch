@@ -1,4 +1,4 @@
-﻿鬼泣5 切人Mod 正式版 release-44
+鬼泣5 切人Mod pre-0.0.1（预发布；内部构建 release-47）
 
 安装与启动
 1. 解压整个压缩包，运行 DMC5SwitchLauncher.exe。

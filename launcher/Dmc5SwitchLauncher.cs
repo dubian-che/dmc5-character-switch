@@ -12,12 +12,12 @@ using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("鬼泣5 切人Mod 正式版")]
 [assembly: System.Reflection.AssemblyProduct("DMC5 Character Switch")]
-[assembly: System.Reflection.AssemblyVersion("1.47.0.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.47.0.0")]
+[assembly: System.Reflection.AssemblyVersion("0.0.1.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.0.1.0")]
 #if SUPPORT_DIAGNOSTICS
-[assembly: System.Reflection.AssemblyInformationalVersion("release-47-support-47.1")]
+[assembly: System.Reflection.AssemblyInformationalVersion("pre-0.0.1+release-47.support-47.1")]
 #else
-[assembly: System.Reflection.AssemblyInformationalVersion("release-47-scripted-movement-guard")]
+[assembly: System.Reflection.AssemblyInformationalVersion("pre-0.0.1+release-47-scripted-movement-guard")]
 #endif
 
 namespace Dmc5SwitchLauncher
@@ -246,9 +246,9 @@ namespace Dmc5SwitchLauncher
         {
             SuspendLayout();
             #if SUPPORT_DIAGNOSTICS
-            Text = "鬼泣5 切人启动器 · release-47 远端诊断版";
+            Text = "鬼泣5 切人启动器 · pre-0.0.1 远端诊断版";
 #else
-            Text = "鬼泣5 切人启动器 · 正式版 release-47";
+            Text = "鬼泣5 切人启动器 · pre-0.0.1";
 #endif
             AutoScaleMode = AutoScaleMode.None;
             ClientSize = new Size(860, 692);

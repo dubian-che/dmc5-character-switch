@@ -1,4 +1,4 @@
-﻿鬼泣5 切人Mod release-47 · 远端诊断启动器 support-47.1
+鬼泣5 切人Mod pre-0.0.1 · 远端诊断版（release-47 / support-47.1）
 
 给测试者的步骤
 1. 解压整个文件夹，运行 DMC5SwitchLauncher.exe，选择游戏目录。

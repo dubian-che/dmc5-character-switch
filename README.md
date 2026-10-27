@@ -1,6 +1,10 @@
 # DMC5 Character Switch / 鬼泣 5 三人切换 Mod
 
 Windows 平台的尼禄、但丁、维吉尔实时切换 Mod，使用 REFramework 和游戏原生资源。
+公开版本：**pre-0.0.1（预发布）**。
+
+[下载安装包](https://github.com/dubian-che/dmc5-character-switch/releases/tag/pre-0.0.1)
+
 当前源码基线：**release-47-scripted-movement-guard**；可选诊断启动器：**support-47.1**。
 
 ## 功能
