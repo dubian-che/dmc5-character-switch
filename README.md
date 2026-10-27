@@ -5,7 +5,7 @@ Windows 平台的尼禄、但丁、维吉尔实时切换 Mod，使用 REFramewor
 
 [GitHub 下载安装包](https://github.com/dubian-che/dmc5-character-switch/releases/tag/pre-0.0.1) · [Gitee 发行版](https://gitee.com/gutssss/dmc5-character-switch/releases)
 
-Gitee 附件镜像尚未发布；当前可从 GitHub 下载完整安装包。
+两个平台的发行版附件分别维护，请按对应发行版页面实际列出的附件下载。
 
 当前源码基线：**release-47-scripted-movement-guard**；可选诊断启动器：**support-47.1**。
 
