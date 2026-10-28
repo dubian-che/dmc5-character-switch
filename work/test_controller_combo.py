@@ -14,9 +14,16 @@ assert c.evaluate(256,True,True)[0]==-1
 for _ in range(120): assert c.evaluate(256,True,True)[0] is None
 assert c.evaluate(256,False,True)[1]==256
 c.evaluate(0,False,True)
+c.evaluate(0,True,True)
 assert c.evaluate(1024,True,True)[0]==1
 c.evaluate(0,True,True)
 assert c.evaluate(1280,True,True)[0] is None
 c.evaluate(0,False,True)
 assert c.evaluate(256,True,False)[0] is None
+c.reset()
+assert c.evaluate(1024,False,True)==(None,0,False)
+assert c.evaluate(1024,True,True)==(None,0,False), 'lock-first taunt consumed without a switch'
+assert c.evaluate(1024,False,True)==(None,0,False), 'lock remained suppressed after ordinary taunt'
+c.reset()
+assert c.evaluate(1024,True,True)==(None,0,False), 'simultaneous ordinary input consumed'
 print('PASS: forward/reverse, no autorepeat, shoulders alone, both shoulders, pause, release suppression.')

@@ -12,12 +12,12 @@ using Microsoft.Win32;
 
 [assembly: System.Reflection.AssemblyTitle("鬼泣5 切人Mod 正式版")]
 [assembly: System.Reflection.AssemblyProduct("DMC5 Character Switch")]
-[assembly: System.Reflection.AssemblyVersion("0.0.1.0")]
-[assembly: System.Reflection.AssemblyFileVersion("0.0.1.0")]
+[assembly: System.Reflection.AssemblyVersion("0.0.4.0")]
+[assembly: System.Reflection.AssemblyFileVersion("0.0.4.0")]
 #if SUPPORT_DIAGNOSTICS
-[assembly: System.Reflection.AssemblyInformationalVersion("pre-0.0.1+release-47.support-47.1")]
+[assembly: System.Reflection.AssemblyInformationalVersion("pre-0.0.4+release-50.support-50.1")]
 #else
-[assembly: System.Reflection.AssemblyInformationalVersion("pre-0.0.1+release-47-scripted-movement-guard")]
+[assembly: System.Reflection.AssemblyInformationalVersion("pre-0.0.4+release-50-native-v-reload")]
 #endif
 
 namespace Dmc5SwitchLauncher
@@ -170,14 +170,8 @@ namespace Dmc5SwitchLauncher
         }
         public static string ModProblem(string root)
         {
-            if (!File.Exists(Path.Combine(root, "dinput8.dll"))) return "未找到 REFramework（dinput8.dll），请先安装 DMC5 版 REFramework。";
-            if (!File.Exists(Path.Combine(root, "reframework", "autorun", "dmc5_live_switch.lua"))) return "未找到切人 Mod，请先安装我们的 Mod 文件。";
-            string keys = Path.Combine(root, "reframework", "data", "dmc5_switch_keys.lua");
-            if (!File.Exists(keys) || !File.ReadAllText(keys).Contains("dmc5_switch_config.json")) return "切人 Mod 版本较旧，请安装支持启动器的新版。";
-            foreach (string name in new [] { "core", "hud", "controller", "lifecycle", "progression", "regen", "resources", "voice", "runtime", "loader", "input_menu" })
-                if (!File.Exists(Path.Combine(root, "reframework", "data", "dmc5_switch_" + name + ".lua"))) return "切人 Mod 文件不完整，请重新安装。";
-            if (!File.Exists(Path.Combine(root, "reframework", "data", "dmc5_party_hud.lua"))) return "缺少队伍界面模块，请重新安装 Mod。";
-            return null;
+            try { new ModInstaller(root).VerifyInstalled(); return null; }
+            catch (Exception ex) { return ex.Message; }
         }
         public static ProcessStartInfo StartInfo(string root)
         {
@@ -246,9 +240,9 @@ namespace Dmc5SwitchLauncher
         {
             SuspendLayout();
             #if SUPPORT_DIAGNOSTICS
-            Text = "鬼泣5 切人启动器 · pre-0.0.1 远端诊断版";
+            Text = "鬼泣5 切人启动器 · pre-0.0.4 远端诊断版";
 #else
-            Text = "鬼泣5 切人启动器 · pre-0.0.1";
+            Text = "鬼泣5 切人启动器 · pre-0.0.4";
 #endif
             AutoScaleMode = AutoScaleMode.None;
             ClientSize = new Size(860, 692);
@@ -279,14 +273,14 @@ namespace Dmc5SwitchLauncher
             capturePrevious.Click += delegate { BeginCapture(-1); };
             AddLabel(forward, "尼禄 → 但丁 → 维吉尔", 18, 106, 355, 25, 9F, Muted);
             AddLabel(backward, "沿相反方向循环切换", 18, 106, 355, 25, 9F, Muted);
-            controller = new CheckBox { Text = "启用手柄切人：按住挑衅 + LB 上一位 / RB 下一位", Location = new Point(30, 394), Size = new Size(800, 30), Checked = true, AccessibleName = "启用手柄切人" };
+            controller = new CheckBox { Text = "启用手柄切人：先按住挑衅，再按 LB 上一位 / RB 下一位", Location = new Point(30, 394), Size = new Size(800, 30), Checked = true, AccessibleName = "启用手柄切人" };
             Controls.Add(controller);
             AddLabel(this, "背键映射为键盘键时，请与这里的设置保持一致。支持单键与 F1–F24。", 30, 432, 800, 27, 9F, Muted);
             Button install = MakeButton(this, "安装 / 更新 Mod", 28, 478, 192, 42, false);
             Button uninstall = MakeButton(this, "卸载 Mod", 234, 478, 152, 42, false);
             install.Click += delegate { ManageMod(true); };
             uninstall.Click += delegate { ManageMod(false); };
-            AddLabel(this, "安装前自动备份；卸载保留按键设置。\n请先退出游戏再安装或卸载。", 408, 476, 420, 48, 9F, Muted);
+            AddLabel(this, "完整安装脚本及加载器，原文件先备份。\n请先退出游戏再安装；保留按键设置。", 408, 476, 420, 48, 9F, Muted);
             status = AddLabel(this, "", 30, 540, 798, 72, 10F, Muted);
 #if SUPPORT_DIAGNOSTICS
             install.Text = "安装 / 更新诊断版";

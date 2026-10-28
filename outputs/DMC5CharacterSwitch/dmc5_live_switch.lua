@@ -1,24 +1,45 @@
 -- Live switching for DMC5 / REFramework TDB 67.
 -- Configurable next/previous keys. Prepare reserve actors as gameplay begins.
+-- Check before loading any module: older loaders must not install partial hooks.
+if type(thread)~='table'or type(thread.get_hook_storage)~='function'then
+ local message='Incompatible REFramework: thread.get_hook_storage is unavailable. Install the complete pre-0.0.4 package and restart the game.'
+ local blocked={build='release-50-native-v-reload',stage='incompatible REFramework',current=-1,available={},error=message}
+ _G.dmc5_live_switch=blocked
+ if log and log.error then pcall(log.error,message)end
+ return blocked
+end
 if _G.dmc5_live_switch then return _G.dmc5_live_switch end
 local core=dofile('reframework/data/dmc5_switch_core.lua')
 local runtime=dofile('reframework/data/dmc5_switch_runtime.lua')
 local loader=dofile('reframework/data/dmc5_switch_loader.lua')
-local S={version=core.version or 1,build='release-47-scripted-movement-guard',stage='ready',current=-1,available={}}
+local S={version=core.version or 1,build='release-50-native-v-reload',stage='ready',current=-1,available={}}
 _G.dmc5_live_switch=S
 local retryOk,retryWhy=pcall(function()
  local t=sdk.find_type_definition('app.MissionSettingManager')
- local m=t and t:get_method('retryMission');assert(m,'Native retry entry unavailable')
- sdk.hook(m,function(args)
-  local ok,why=pcall(runtime.prepareStoryRetry,sdk.to_managed_object(args[2]))
-  if not ok then runtime.storyRetryError=tostring(why)end
- end,function(ret)return ret end)
+ for _,name in ipairs({'retryMission','restartMissionCheckPoint'})do
+  local m=t and t:get_method(name);assert(m,'Native reload entry unavailable: '..name)
+  local key='partyReload_'..name
+  sdk.hook(m,function(args)
+   local owner=sdk.to_managed_object(args[2])
+   local ok,prepared=pcall(runtime.prepareStoryRetry,owner)
+   if not ok then runtime.storyRetryError=tostring(prepared)
+   elseif prepared then thread.get_hook_storage()[key]={owner=owner,serial=runtime.storyRetrySerial}end
+  end,function(ret)
+   local storage=thread.get_hook_storage();local reload=storage[key];storage[key]=nil
+   if reload then
+    local ok,why=pcall(runtime.finishStoryRetry,reload.owner,reload.serial)
+    if not ok then runtime.storyRetryError=tostring(why)end
+   end
+   return ret
+  end)
+ end
 end)
 if not retryOk then S.storyRetryInstallError=tostring(retryWhy)end
 dofile('reframework/data/dmc5_switch_input_menu.lua')
 local request=nil
 local keys={}
 function S.request(id,source)
+ if runtime.storyReload then return false end
  if not core.names[id] then return false end
  if runtime.manager and not runtime.permits()then return false end
  source=source or 'user'
@@ -76,6 +97,7 @@ local function is_down(key)return reframework:is_key_down(key)end
 local function advance(manager)
  local c=runtime.get(manager)
  S.current=c.id
+ if runtime.storyReload then request=nil;S.stage='checkpoint reload in progress';return end
  if not runtime.permits(manager)then request=nil;S.stage='outside party scene';return end
  if not core.names[S.current]then request=nil;return end
  if not request then return end
@@ -110,6 +132,8 @@ sdk.hook(sdk.find_type_definition('app.PlayerManager'):get_method('doUpdate'),fu
  if not ok then request=nil;S.stage='error';S.error=tostring(why)end
 end,function(ret)return ret end)
 re.on_frame(function()
+ local ok,why=pcall(runtime.maintainStoryReload)
+ if not ok then runtime.storyRetryError=tostring(why)end
  keyModule.poll(S,keys,S.config,is_down)
 end)
 return S

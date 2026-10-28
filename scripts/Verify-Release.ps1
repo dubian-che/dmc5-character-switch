@@ -20,7 +20,8 @@ $assembly = [Reflection.Assembly]::LoadFile((Join-Path $folder 'DMC5SwitchLaunch
 $flags = [Reflection.BindingFlags]'NonPublic,Public,Static,Instance'
 if ($assembly.GetType('Dmc5SwitchLauncher.InstallerTests') -or
     $assembly.GetType('Dmc5SwitchLauncher.Program').GetMethod('SelfTest',$flags) -or
-    $assembly.GetType('Dmc5SwitchLauncher.ModInstaller').GetField('FailAfter',$flags)) {
+    $assembly.GetType('Dmc5SwitchLauncher.ModInstaller').GetField('FailAfter',$flags) -or
+    $assembly.GetType('Dmc5SwitchLauncher.ModInstaller').GetField('FailVerification',$flags)) {
     throw '正式启动器混入了测试代码。'
 }
 function ReadResource($owner,$name) {
@@ -60,6 +61,6 @@ $sourceFiles = @($rows | Select-Object -ExpandProperty File) + 'README.txt'
 if (Compare-Object $sourceFiles @(Get-ChildItem -LiteralPath (Join-Path $project 'outputs\DMC5CharacterSwitch') | Select-Object -ExpandProperty Name)) {
     throw '正式脚本目录混入了非发布文件。'
 }
-$result = [pscustomobject]@{Build='release-47-scripted-movement-guard';Passed=$true;Files=$expected;InstalledVerified=[bool]$VerifyInstalled;TestCodeExcluded=$true;TestAndReleasePayloadsMatch=$true;Modules=$rows}
+$result = [pscustomobject]@{Build='release-50-native-v-reload';Passed=$true;Files=$expected;InstalledVerified=[bool]$VerifyInstalled;TestCodeExcluded=$true;TestAndReleasePayloadsMatch=$true;Modules=$rows}
 $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $project 'work\performance-release-verification.json') -Encoding UTF8
 $result | Select-Object Build,Passed,InstalledVerified,TestCodeExcluded,TestAndReleasePayloadsMatch

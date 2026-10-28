@@ -48,6 +48,7 @@ function R.selectManual(manager,setting,id)
   mission=loader and loader.storyMission,retrySerial=R.storyRetrySerial}
 end
 local function manualLookupBegin(manager)
+ R.maintainStoryReload(manager)
  local storage=thread.get_hook_storage()
  storage.manualIdentityFrames=storage.manualIdentityFrames or {}
  local frame={};table.insert(storage.manualIdentityFrames,frame)
@@ -94,23 +95,78 @@ end,function(ret)
  return ret
 end)
 function R.prepareStoryRetry(settingManager)
- if not settingManager or not R.manager or not R.permits(R.manager)then return false end
+ if not settingManager or not R.manager then return false end
  local gm=sdk.get_managed_singleton('app.GameManager')
  if not gm or gm:call('get_gameMode')~=0 or not settingManager:call('get_isEntered')then return false end
- local id=gm:call('findManualPlayerID')
- local native=R.nativeControl
- if native and native.manager==R.manager and native.mode==0 and native.mission==gm:call('get_missionNo')then id=native.id end
- if id~=0 and id~=1 and id~=4 then return false end
+ local active=R.manager:call('get_manualPlayer')
+ local activeID=active and active:call('get_playerID')
+ if activeID~=0 and activeID~=1 and activeID~=4 then return false end
  local setting=settingManager:call('get_Setting')
  if not setting then return false end
+ local native=R.nativeControl
+ local id=gm:call('findManualPlayerID')
+ if native and native.manager==R.manager and native.setting==setting and native.mode==0 and native.mission==gm:call('get_missionNo')then id=native.id end
+ if id~=0 and id~=1 and id~=4 then return false end
  -- Retry reconstructs the primary actor from this value. A Mod selection
  -- must not become the incoming story's native spawn identity.
  if setting:call('get_ControllPlayerID')~=id then setting:call('set_ControllPlayerID',id)end
  R.storyRetrySerial=(R.storyRetrySerial or 0)+1
+ R.storyReload={owner=settingManager,setting=setting,id=id,mission=gm:call('get_missionNo'),serial=R.storyRetrySerial,
+  manager=R.manager,actor=R.manager:call('getPlayerByID',id),readyFrames=0,phase='scheduled'}
+ R.controlSelection=nil
  R.storyRetryID=id;R.storyRetryError=nil
  return true
 end
-function R.begin(manager) R.invalidate();R.pending=nil;R.updating=true;if manager then R.manager=manager end end
+function R.finishStoryRetry(settingManager,serial)
+ local reload=R.storyReload;local gm=sdk.get_managed_singleton('app.GameManager')
+ if not reload or reload.postDone or reload.owner~=settingManager or reload.serial~=serial or R.storyRetrySerial~=serial or
+  not gm or gm:call('get_gameMode')~=0 or gm:call('get_missionNo')~=reload.mission then return false end
+ if settingManager:call('get_Setting')~=reload.setting then return false end
+ -- Checkpoint restart schedules the reconstruction. Native code can rewrite
+ -- the selected ID while scheduling; restore the captured route after it too.
+ if reload.setting:call('get_ControllPlayerID')~=reload.id then reload.setting:call('set_ControllPlayerID',reload.id)end
+ R.controlSelection=nil;reload.postDone=true;reload.phase='waiting for teardown'
+ return true
+end
+function R.maintainStoryReload(manager)
+ local reload=R.storyReload;if not reload then return false end
+ local gm=sdk.get_managed_singleton('app.GameManager')
+ if not gm or gm:call('get_gameMode')~=0 or gm:call('get_missionNo')~=reload.mission then R.storyReload=nil;return false end
+ local lookup=gm:call('findManualPlayerID')
+ if (lookup==0 or lookup==1 or lookup==2 or lookup==4)and lookup~=reload.id then R.storyReload=nil;return false end
+ local settings=sdk.get_managed_singleton('app.MissionSettingManager')
+ local setting=settings and settings:call('get_Setting')
+ if not setting then reload.boundary=true;reload.phase='waiting for settings';return true end
+ if setting~=reload.setting then reload.boundary=true end
+ -- The asynchronous checkpoint states may install a different setting object
+ -- after the original request returns. Keep the captured route through that gap.
+ if setting:call('get_ControllPlayerID')~=reload.id then
+  setting:call('set_ControllPlayerID',reload.id);reload.repairs=(reload.repairs or 0)+1
+ end
+ R.controlSelection=nil
+ if not manager then return true end
+ local active=manager:call('get_manualPlayer');local actor=manager:call('getPlayerByID',reload.id)
+ if not active then reload.teardown=true end
+ if manager~=reload.manager or actor~=reload.actor or not active then reload.boundary=true end
+ if not reload.boundary then return true end -- Never accept the outgoing actor as the new arrival.
+ if not reload.teardown and manager==reload.manager and actor==reload.actor then reload.readyFrames=0;return true end
+ reload.phase='waiting for native arrival'
+ local mesh=actor and actor:call('get_bodyMeshList')
+ local bound=mesh and mesh:get_size()>0 and mesh:get_element(0)
+ if active==actor and actor and bound and actor:call('get_Enable')and actor:call('get_Enabled')and
+  actor:call('get_hp')>0 and not actor:call('get_isEventMove')and not gm:call('get_isPause')then
+  reload.readyFrames=reload.readyFrames+1
+ else reload.readyFrames=0 end
+ if reload.readyFrames<2 then return true end
+ R.nativeControl={manager=manager,setting=setting,id=reload.id,mode=0,mission=reload.mission,retrySerial=R.storyRetrySerial}
+ R.storyReload=nil;R.storyRetryError=nil;R.invalidate()
+ return false
+end
+function R.begin(manager)
+ R.invalidate();R.pending=nil;R.updating=true;if manager then R.manager=manager end
+ local ok,why=pcall(R.maintainStoryReload,manager)
+ if not ok then R.storyRetryError=tostring(why)end
+end
 function R.permits(manager)
  manager=manager or R.manager;if not manager then return false end
  local active=manager:call('get_manualPlayer')

@@ -163,6 +163,12 @@ local function step(manager,loader,core)
  end
 end
 function B.update(manager,core,requested)
+ if runtime.storyReload then
+  if B.storyRetrySerial~=runtime.storyRetrySerial then
+   B.reset(manager);B.storyRetrySerial=runtime.storyRetrySerial
+  end
+  B.playable=false;B.stage='waiting for checkpoint reload';return
+ end
  if not runtime.permits(manager)then
   if B.manager then B.reset(nil)end
   return
@@ -270,6 +276,7 @@ function B.update(manager,core,requested)
  B.clock=B.clock+elapsed
  local loader=sdk.get_managed_singleton('app.AdditionalPlayerLoadManager')
  if not loader then B.stage='waiting for loader';return end
+ if mode~=0 then
  -- Cache identity AND inspect current state: floor cleanup may show the
  -- same V again. Settled actors are read, never repeatedly paused/hidden.
  local extra=manager:call('getPlayerByID',2)
@@ -285,6 +292,7 @@ function B.update(manager,core,requested)
   if extra and (extraState==nil or extraState==6) and core.parkNonParty(manager,extra)then B.excludedV=extra
   elseif not extra then B.excludedV=nil end
  end
+ else B.excludedV=nil end -- Native story V is not a reserve actor owned by us.
  B.count=0
  for _,id in ipairs(ids)do
   local ready=B.ready(manager,id)

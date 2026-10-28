@@ -23,7 +23,7 @@ namespace Dmc5SwitchLauncher
     public static class SupportRecorder
     {
         public const string Name = "zzz_dmc5_support_recorder.lua";
-        public const string Version = "support-47.1";
+        public const string Version = "support-50.1";
         public static byte[] Payload()
         {
             using (var input = Assembly.GetExecutingAssembly().GetManifestResourceStream("support.recorder.lua"))

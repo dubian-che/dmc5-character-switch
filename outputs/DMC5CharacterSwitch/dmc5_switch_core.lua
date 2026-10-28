@@ -1,5 +1,5 @@
 -- DMC5 live switch: per-instance ownership, native readiness and bounded recovery.
-local M={version=47,names={[0]='Nero',[1]='Dante',[4]='Vergil'}}
+local M={version=50,names={[0]='Nero',[1]='Dante',[4]='Vergil'}}
 local runtime=dofile('reframework/data/dmc5_switch_runtime.lua')
 local hud=dofile('reframework/data/dmc5_switch_hud.lua')
 local progression=dofile('reframework/data/dmc5_switch_progression.lua')
@@ -54,6 +54,10 @@ end
 function M.hideReserve(manager,player)
  if not runtime.permits(manager)then return false end
  if player==manager:call('get_manualPlayer')then return false end
+ if player:call('get_playerID')==2 then
+  local gm=sdk.get_managed_singleton('app.GameManager')
+  if not gm or gm:call('get_gameMode')==0 then return false end
+ end
  local med=player:call('get_cachedActivateMediator')
  if med then med:call('set_drawSelf',false);med:call('applyDrawSelf')end
  return true
@@ -66,6 +70,10 @@ local function showPlayer(player)
 end
 function M.parkNonParty(manager,player)
  if not runtime.permits(manager)then return false end
+ -- Story V may belong to native cameo/event/audio work even after his event
+ -- movement flag clears. This Mod never owns those native actor lifetimes.
+ local gm=sdk.get_managed_singleton('app.GameManager')
+ if not gm or gm:call('get_gameMode')==0 then return false end
  -- V can already exist in the native manager without a load request from
  -- this Mod. Never initialize/unload him, or touch an actively controlled V.
  local owner=manager:call('get_manualPlayer')

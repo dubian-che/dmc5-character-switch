@@ -56,6 +56,7 @@ namespace Dmc5SwitchLauncher
 #if MOD_TESTS
         // Compiled only into the separate development test executable.
         internal int FailAfter = -1;
+        internal bool FailVerification;
 #endif
         public ModInstaller(string gameRoot, Func<bool> isRunning = null)
         {
@@ -185,7 +186,7 @@ namespace Dmc5SwitchLauncher
                 throw new InvalidDataException("未完成的操作记录无效，已保留所有文件。");
             Rollback(changes); File.Delete(pending);
         }
-        void Commit(List<FileChange> changes)
+        void Commit(List<FileChange> changes, Action verify = null)
         {
             string pending = Resolve(Store + "/pending.json");
             Write(pending, Serialize(changes), 0);
@@ -202,6 +203,7 @@ namespace Dmc5SwitchLauncher
                     if (++count == FailAfter) throw new IOException("Injected test failure");
 #endif
                 }
+                if (verify != null) verify();
                 File.Delete(pending);
             }
             catch
@@ -233,6 +235,17 @@ namespace Dmc5SwitchLauncher
             }
             return false;
         }
+        public void VerifyInstalled()
+        {
+            foreach (var item in payload)
+                if (FileHash(Target(item.Key)) != Hash(item.Value))
+                    throw new InvalidDataException("安装文件缺失或与本版不一致，请重新安装：" + item.Key);
+            if (FileHash(Target(LicensePath)) != Hash(Resource("REFramework-LICENSE.txt")))
+                throw new InvalidDataException("REFramework 许可证缺失或不一致，请重新安装。");
+#if MOD_TESTS
+            if (FailVerification) throw new IOException("Injected verification failure");
+#endif
+        }
         public string Run(bool install)
         {
             if (running()) throw new InvalidOperationException("请先退出鬼泣 5，再安装或卸载 Mod。");
@@ -252,14 +265,8 @@ namespace Dmc5SwitchLauncher
                     {
                         string path = Target(item.Key), current = FileHash(path);
                         var owned = state.Files.Find(f => f.Path == item.Key);
-                        // Never replace an existing loader, even an older REFramework or another proxy.
-                        if (item.Key == "dinput8.dll" && current != null)
-                        {
-                            if (owned != null && current != owned.InstalledHash) state.Files.Remove(owned);
-                            keptRuntime = true; continue;
-                        }
-                        if (owned != null && current != null && current != owned.InstalledHash)
-                            throw new IOException("文件在安装后被修改，已停止更新并保留原样：" + item.Key);
+                        // Installation deploys one verified payload, including the loader.
+                        // Change() backs up the current bytes even when an owned file was edited.
                         if (owned == null)
                         {
                             owned = new OwnedFile { Path = item.Key };
@@ -272,7 +279,7 @@ namespace Dmc5SwitchLauncher
                         owned.InstalledHash = Hash(item.Value);
                         changes.Add(Change(item.Key, item.Value));
                     }
-                    if (!File.Exists(Target(LicensePath))) changes.Add(Change(LicensePath, Resource("REFramework-LICENSE.txt")));
+                    changes.Add(Change(LicensePath, Resource("REFramework-LICENSE.txt")));
                     changes.Add(Change(StatePath, Serialize(state)));
                 }
                 else
@@ -289,19 +296,20 @@ namespace Dmc5SwitchLauncher
                     foreach (var owned in state.Files)
                     {
                         string current = FileHash(Target(owned.Path));
-                        if (owned.Path == "dinput8.dll" && (otherMods || (current != null && current != owned.InstalledHash)))
+                        if (owned.Path == "dinput8.dll" &&
+                            ((otherMods && owned.Original == null) || (current != null && current != owned.InstalledHash)))
                         { keptRuntime = true; continue; }
                         if (current != null && current != owned.InstalledHash)
                             throw new IOException("文件在安装后被修改，已停止卸载并保留原样：" + owned.Path);
                         changes.Add(Change(owned.Path, owned.Original == null ? null : BackupBytes(owned.Original, owned.OriginalHash), owned.OriginalTime));
                     }
-                    // Existing loaders never belong to us and remain in place.
+                    // Unowned loaders and newly shared loaders without an original stay in place.
                     keptRuntime = keptRuntime || (File.Exists(Target("dinput8.dll")) && !state.Files.Any(f => f.Path == "dinput8.dll"));
                     changes.Add(Change(StatePath, null));
                 }
                 if (running()) throw new InvalidOperationException("游戏刚刚启动，已取消文件更改。请退出游戏后重试。");
-                Commit(changes);
-                if (install) return "安装完成。按键设置已保留。" + (keptRuntime ? "现有加载器保持不变。" : "已安装所需的 REFramework。") + "备份在游戏目录的 " + Store + "。";
+                Commit(changes, install ? (Action)VerifyInstalled : null);
+                if (install) return "安装完成，15 个脚本和 REFramework 加载器均已逐项校验。按键设置已保留。原文件备份在游戏目录的 " + Store + "/history/。";
                 return (untouched == 0 ? "卸载完成，已恢复安装前的同名文件；按键设置和备份保留。" : "已移除可确认的本 Mod 文件；另有 " + untouched + " 个未知同名文件保留，需手动确认。") + (keptRuntime ? "原有或共用加载器保留。" : "");
             }
         }

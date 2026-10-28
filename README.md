@@ -1,13 +1,13 @@
 # DMC5 Character Switch / 鬼泣 5 三人切换 Mod
 
 Windows 平台的尼禄、但丁、维吉尔实时切换 Mod，使用 REFramework 和游戏原生资源。
-公开版本：**pre-0.0.1（预发布）**。
+当前待验证版本：**pre-0.0.4**；已发布版本：**pre-0.0.1**。
 
 [GitHub 下载安装包](https://github.com/dubian-che/dmc5-character-switch/releases/tag/pre-0.0.1) · [Gitee 发行版](https://gitee.com/gutssss/dmc5-character-switch/releases)
 
 两个平台的发行版附件分别维护，请按对应发行版页面实际列出的附件下载。
 
-当前源码基线：**release-47-scripted-movement-guard**；可选诊断启动器：**support-47.1**。
+当前源码基线：**release-50-native-v-reload**；可选诊断启动器：**support-50.1**。
 
 ## 功能
 
@@ -31,7 +31,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Launcher.ps1
 ```
 
 输出在 `dist/DMC5切人启动器/`。运行启动器并选择游戏目录，关闭游戏后安装或更新。
-安装器维护文件归属和备份记录；已有未知加载器时需先处理冲突。
+安装器先备份已有同名文件，再完整部署 15 个 Lua 模块与固定版本加载器，并逐项校验。原按键配置保留；其他插件文件不被删除，但其与新版加载器的兼容性需实测。
 本仓库不分发游戏本体，也不要求修改游戏 PAK。
 
 ## 可选远端诊断版

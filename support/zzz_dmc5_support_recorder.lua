@@ -1,6 +1,6 @@
 -- Optional support recorder. Reads state only; no gameplay setters or hooks.
 if _G.dmc5_support_recorder then return end
-local D={version='support-47.1',samples=0,writes=0,buffer={}}
+local D={version='support-50.1',samples=0,writes=0,buffer={}}
 _G.dmc5_support_recorder=D
 local folder='dmc5_support/'
 local session=tostring(os.time())..'-'..tostring(math.floor((os.clock()%1)*1000000))
@@ -63,7 +63,7 @@ local function list(o,max,array)
 end
 local function charge(o)
  if not o then return nil end
- return {address=address(o),enabled=field(o,'Enable'),autoCharge=call(o,'get_AutoCharge'),
+ return {address=address(o),enabled=field(o,'Enable'),parameter=address(call(o,'get_parameter')),autoCharge=call(o,'get_AutoCharge'),
   state=call(o,'get_state'),level=call(o,'get_currentLevel'),limit=field(o,'LimitLevel'),
   timer=call(o,'get_timer'),key=call(o,'get_padInputFlag'),input=address(call(o,'get_padInput'))}
 end
@@ -92,6 +92,7 @@ local function actor(p,manual)
  row.inputOn=call(input,'get_buttonOnFlags')
  row.inputTrigger=call(input,'get_buttonTriggerFlags');row.inputRelease=call(input,'get_buttonReleaseFlags')
  row.weaponS=call(p,'get_currentWeaponS');row.weaponL=call(p,'get_currentWeaponL')
+ row.weaponSID=call(p,'get_weaponS_ID');row.weaponLID=call(p,'get_weaponL_ID')
  row.weaponSlotsS=list(call(p,'get_slotWeaponS'),16,false);row.weaponSlotsL=list(call(p,'get_slotWeaponL'),16,false)
  if id==0 then
   row.armCount=call(p,'get_gauntletNum');row.pendingArms=call(p,'get_gauntletStackCount')
@@ -106,7 +107,7 @@ local function actor(p,manual)
 end
 local function capture(now,kind)
  local S=_G.dmc5_live_switch or {};local B=_G.dmc5_switch_loader or {}
- local R=_G.dmc5_switch_runtime or {};local P=_G.dmc5_switch_palace or {}
+ local R=_G.dmc5_switch_runtime or {};local P=_G.dmc5_switch_palace or {};local C=_G.dmc5_switch_controller or {}
  local H=_G.dmc5_party_hud or {};local gm=singleton('app.GameManager')
  local manager=B.manager or R.manager or singleton('app.PlayerManager')
  local manual=call(manager,'get_manualPlayer');local bp=singleton('app.BloodyPalaceManager')
@@ -118,7 +119,9 @@ local function capture(now,kind)
   loader={stage=text(B.stage),error=text(B.error),generation=B.generation,available=copy(B.available),
    task=B.task and {id=B.task.id,phase=B.task.phase},playable=B.playable},
   control={selected=R.controlSelection and R.controlSelection.id,native=R.nativeControl and R.nativeControl.id,
-   error=text(R.controlIdentityError),retry=R.storyRetrySerial},
+   error=text(R.controlIdentityError),retry=R.storyRetrySerial,lookup=call(gm,'findManualPlayerID'),playing=field(gm,'PlayingID'),
+   retryError=text(R.storyRetryError),reload=R.storyReload and copy(R.storyReload)},
+  controller={source=C.inputSource,mask=C.lastMask,pending=C.pending,error=text(C.error)},
   palace={floor=field(bp,'CurrentStageNo'),supply=field(bp,'IsGauntletStage'),
    restores=P.restores,error=text(P.error)},hud={active=H.active,error=text(H.error),stage=text(H.stage)},players={}}
  local count=call(manager,'getPlayerNum')

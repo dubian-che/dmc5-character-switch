@@ -60,10 +60,11 @@ namespace Dmc5SwitchLauncher
                 Put(root, "dinput8.dll", "pre-existing third-party loader");
                 Put(root, "reframework/autorun/another-mod.lua", "do not change");
                 before = Snapshot(root); installer = new ModInstaller(root, () => false);
-                installer.Run(true); Check(File.ReadAllText(Target(root, "dinput8.dll")) == "pre-existing third-party loader", "existing loader replaced");
+                installer.Run(true); installer.VerifyInstalled();
+                Check(File.ReadAllText(Target(root, "dinput8.dll")) != "pre-existing third-party loader", "old loader was silently retained");
                 installer.Run(true); installer.Run(false); Same(before, root, "original restore + other mod preservation");
                 Check(File.GetLastWriteTimeUtc(Target(root, originalPath)) == originalTime, "restored timestamp");
-                passed.Add("same-name originals restored byte-for-byte and timestamp; other mods and existing loader preserved");
+                passed.Add("old loader replaced by pinned runtime; repeated update/uninstall restores original loader and scripts with other mods preserved");
 
                 root = CreateGame(parent, "shared-runtime"); installer = new ModInstaller(root, () => false); installer.Run(true);
                 string runtimeHash = ModInstaller.Hash(File.ReadAllBytes(Target(root, "dinput8.dll")));
@@ -77,8 +78,38 @@ namespace Dmc5SwitchLauncher
                 root = CreateGame(parent, "edited-owned-file"); installer = new ModInstaller(root, () => false); installer.Run(true);
                 Put(root, originalPath, "user's post-install edits"); before = Snapshot(root);
                 MustFail(() => installer.Run(false), "modified file uninstall allowed"); Same(before, root, "modified file not preserved on uninstall");
-                MustFail(() => installer.Run(true), "modified file update allowed"); Same(before, root, "modified file not preserved on update");
-                passed.Add("post-install file edits block update and uninstall without any game-file changes");
+                installer.Run(true); installer.VerifyInstalled();
+                Check(Directory.GetFiles(Target(root, ModInstaller.Store + "/history"), "*.bin", SearchOption.AllDirectories)
+                    .Any(p => ModInstaller.Hash(File.ReadAllBytes(p)) == ModInstaller.Hash(Encoding.UTF8.GetBytes("user's post-install edits"))), "edited file not backed up before repair");
+                passed.Add("edited files block uninstall; explicit update backs up edits and repairs the complete payload");
+
+                root = CreateGame(parent, "verify-every-file"); installer = new ModInstaller(root, () => false); installer.Run(true);
+                foreach (string module in ModInstaller.Modules)
+                {
+                    string file = Target(root, ModInstaller.ModulePath(module)); byte[] bytes = File.ReadAllBytes(file);
+                    File.Delete(file); MustFail(installer.VerifyInstalled, "missing module passed verification: " + module);
+                    File.WriteAllText(file, "corrupted module"); MustFail(installer.VerifyInstalled, "corrupt module passed verification: " + module);
+                    File.WriteAllBytes(file, bytes);
+                }
+                Put(root, "dinput8.dll", "externally replaced old runtime");
+                Check(Game.ModProblem(root) != null, "launcher accepted mismatching runtime");
+                File.Delete(Target(root, ModInstaller.ModulePath("dmc5_switch_palace.lua")));
+                installer.Run(true); installer.VerifyInstalled(); Check(Game.ModProblem(root) == null, "repaired installation still rejected");
+                var verified = ConfigStore.Json.Deserialize<InstallState>(File.ReadAllText(Target(root, ModInstaller.Store + "/installed.json")));
+                Check(verified.Files.Count == ModInstaller.Modules.Length + 1, "ownership did not cover all modules and runtime");
+                Check(verified.Files.All(f => f.InstalledHash == ModInstaller.Hash(File.ReadAllBytes(Target(root, f.Path)))), "ownership hashes differ from installed files");
+                passed.Add("each of 15 missing/corrupt modules detected; mismatching loader blocks launch; complete repair and 16 ownership hashes verified");
+
+                root = CreateGame(parent, "post-verification-rollback");
+                Put(root, "dinput8.dll", "original runtime before failed verification");
+                Put(root, originalPath, "original script before failed verification"); before = Snapshot(root);
+                installer = new ModInstaller(root, () => false); installer.FailVerification = true;
+                MustFail(() => installer.Run(true), "post-write verification failure ignored"); Same(before, root, "post-write verification did not roll back");
+                Check(!File.Exists(Target(root, ModInstaller.Store + "/pending.json")), "verification rollback journal left behind");
+                installer.FailVerification = false; installer.FailAfter = 16;
+                MustFail(() => installer.Run(true), "post-runtime failure ignored"); Same(before, root, "runtime replacement did not roll back");
+                installer.FailAfter = -1; installer.Run(true); installer.Run(false); Same(before, root, "originals lost after failed verification and retry");
+                passed.Add("verification failure and failure after DLL replacement both roll back; retry/uninstall restores exact originals");
 
                 root = CreateGame(parent, "legacy-adoption"); installer = new ModInstaller(root, () => false); installer.Run(true);
                 // Simulate the exact known scripts installed before launcher ownership records existed.

@@ -105,6 +105,7 @@ sdk={hook=function(method,pre,post)
    if method=='get_gameMode'then return mode elseif method=='get_missionNo'then return missionNo elseif method=='findManualPlayerID'then return campaignID end;return paused
   end}end
   if name=='app.AdditionalPlayerLoadManager'then return native end
+  if name=='app.MissionSettingManager'then return settingManager end
   if name=='app.LocationEnvManager'then return {call=function(_,n)assert(n=='get_isBusy');return locationBusy end}end
   error(name)
  end}

@@ -47,6 +47,7 @@ sdk.get_managed_singleton=function(name)
  assert(name=='app.GameManager')
  return {get_field=function(_,n)assert(n=='PlayingID');return profile or 0 end,set_field=function(_,name,value)assert(name=='PlayingID');profile=value end,
   call=function(_,name)
+   if name=='get_gameMode'then return 3 end
    assert(name=='updatePlayerPadInput')
    if active and active.id==0 then active.padInput={}end
   end}

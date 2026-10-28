@@ -26,14 +26,14 @@ try {
     }
     $checks = @('work\check_switch_lua.py') + @(Get-ChildItem -LiteralPath (Join-Path $project 'work') -Filter 'test_*.py' -File | Sort-Object Name | ForEach-Object { $_.FullName })
     foreach ($check in $checks) {
-        & $Python $check
+        & $Python -c "import runpy,sys; sys.path.insert(0, 'work'); runpy.run_path(sys.argv[1], run_name='__main__')" $check
         if ($LASTEXITCODE -ne 0) { throw "Python check failed: $check" }
         $rows += [pscustomobject]@{Test=(Split-Path $check -Leaf);Passed=$true}
     }
     & (Join-Path $PSScriptRoot 'Verify-Release.ps1')
     if (!$?) { throw 'Release verification failed.' }
     $result = [pscustomobject]@{
-        Build='release-47-scripted-movement-guard';Passed=$true
+        Build='release-50-native-v-reload';Passed=$true
         CreatedUtc=[DateTime]::UtcNow.ToString('o')
         LaunchedGame=$false;ChangedGameInstallation=$false;Checks=$rows
     }
