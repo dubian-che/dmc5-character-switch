@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -52,6 +52,13 @@ namespace Dmc5SwitchLauncher
                 installer.Run(false); Same(before, root, "repeated uninstall");
                 passed.Add("clean installation + idempotent update + uninstall; original EXE/PAK/config unchanged");
 
+                root = CreateGame(parent, "native-loader-conflict");
+                Put(root, "winmm.dll", "unrelated native loader"); before = Snapshot(root);
+                installer = new ModInstaller(root, () => false);
+                MustFail(() => installer.Run(true), "unknown native loader overwritten");
+                Same(before, root, "unknown WinMM loader must remain unchanged");
+                passed.Add("unknown WinMM loader blocks installation without replacing user files");
+
                 root = CreateGame(parent, "original-conflict");
                 string originalPath = ModInstaller.ModulePath("dmc5_switch_core.lua");
                 Put(root, originalPath, "pre-existing same-name content");
@@ -95,10 +102,18 @@ namespace Dmc5SwitchLauncher
                 Check(Game.ModProblem(root) != null, "launcher accepted mismatching runtime");
                 File.Delete(Target(root, ModInstaller.ModulePath("dmc5_switch_palace.lua")));
                 installer.Run(true); installer.VerifyInstalled(); Check(Game.ModProblem(root) == null, "repaired installation still rejected");
+                string nativeFile = Target(root, "winmm.dll"); byte[] nativeBytes = File.ReadAllBytes(nativeFile);
+                File.WriteAllText(nativeFile, "corrupt native audio fix");
+                Check(Game.ModProblem(root) != null, "corrupt audio fix did not block launch");
+                File.WriteAllBytes(nativeFile, nativeBytes);
                 var verified = ConfigStore.Json.Deserialize<InstallState>(File.ReadAllText(Target(root, ModInstaller.Store + "/installed.json")));
-                Check(verified.Files.Count == ModInstaller.Modules.Length + 1, "ownership did not cover all modules and runtime");
+                string keyboardFile = Target(root, "reframework/data/dmc5_keyboard.dll"); byte[] keyboardBytes = File.ReadAllBytes(keyboardFile);
+                File.Delete(keyboardFile); MustFail(installer.VerifyInstalled, "missing keyboard module passed verification");
+                File.WriteAllText(keyboardFile, "corrupt keyboard module"); MustFail(installer.VerifyInstalled, "corrupt keyboard module passed verification");
+                File.WriteAllBytes(keyboardFile, keyboardBytes); installer.VerifyInstalled();
+                Check(verified.Files.Count == ModInstaller.Modules.Length + 5, "ownership did not cover all modules and runtime");
                 Check(verified.Files.All(f => f.InstalledHash == ModInstaller.Hash(File.ReadAllBytes(Target(root, f.Path)))), "ownership hashes differ from installed files");
-                passed.Add("each of 15 missing/corrupt modules detected; mismatching loader blocks launch; complete repair and 16 ownership hashes verified");
+                passed.Add("each of 15 missing/corrupt modules detected; mismatching loader blocks launch; complete repair and 20 ownership hashes verified");
 
                 root = CreateGame(parent, "post-verification-rollback");
                 Put(root, "dinput8.dll", "original runtime before failed verification");
@@ -108,6 +123,8 @@ namespace Dmc5SwitchLauncher
                 Check(!File.Exists(Target(root, ModInstaller.Store + "/pending.json")), "verification rollback journal left behind");
                 installer.FailVerification = false; installer.FailAfter = 16;
                 MustFail(() => installer.Run(true), "post-runtime failure ignored"); Same(before, root, "runtime replacement did not roll back");
+                installer.FailAfter = 17;
+                MustFail(() => installer.Run(true), "post-audio-fix failure ignored"); Same(before, root, "audio fix replacement did not roll back");
                 installer.FailAfter = -1; installer.Run(true); installer.Run(false); Same(before, root, "originals lost after failed verification and retry");
                 passed.Add("verification failure and failure after DLL replacement both roll back; retry/uninstall restores exact originals");
 
@@ -126,6 +143,8 @@ namespace Dmc5SwitchLauncher
                 installer = new ModInstaller(root, () => false); installer.FailAfter = 5;
                 MustFail(() => installer.Run(true), "failure injection not triggered"); Same(before, root, "failed installation rollback");
                 Check(!File.Exists(Target(root, ModInstaller.Store + "/pending.json")), "rollback journal not cleared");
+                installer.FailAfter = 17;
+                MustFail(() => installer.Run(true), "post-audio-fix failure ignored"); Same(before, root, "audio fix replacement did not roll back");
                 installer.FailAfter = -1; installer.Run(true); before = Snapshot(root);
                 installer.FailAfter = 5; MustFail(() => installer.Run(false), "uninstall failure not triggered"); Same(before, root, "failed uninstall rollback");
                 installer.FailAfter = -1; installer.Run(false);

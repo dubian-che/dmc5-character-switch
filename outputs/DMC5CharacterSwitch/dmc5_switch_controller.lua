@@ -1,8 +1,26 @@
--- Controller modifier: configured taunt + LB previous / RB next.
+-- Controller modifier: native configured taunt plus a customizable physical button.
 local C=_G.dmc5_switch_controller or {enabled=true,oldShoulders=0,blocked=0}
 local runtime=dofile('reframework/data/dmc5_switch_runtime.lua')
 _G.dmc5_switch_controller=C
 C.LB=256;C.RB=1024;C.shoulders=C.LB|C.RB
+C.bindings={{mask=C.LB,action=-1},{mask=C.RB,action=1}}
+local buttonFields={A='RDown',B='RRight',X='RLeft',Y='RUp',LB='LTrigTop',LT='LTrigBottom',RB='RTrigTop',RT='RTrigBottom'}
+function C.configure(config)
+ local definitions={{'padPrevious','LB',-1},{'padNext','RB',1},{'padNero','None','nero'},{'padDante','None','dante'},{'padVergil','None','vergil'}}
+ local t=sdk.find_type_definition('via.hid.GamePadButton')
+ local bindings,all,used={},0,{}
+ for _,item in ipairs(definitions)do
+  local name=config[item[1]]or item[2]
+  if name~='None'then
+   local field=t and buttonFields[name]and t:get_field(buttonFields[name])
+   local mask=field and field:get_data(nil)
+   assert(type(mask)=='number'and mask>0 and mask%1==0 and(mask&(mask-1))==0,'Controller button metadata unavailable: '..tostring(name))
+   assert(not used[mask],'Duplicate controller button: '..name)
+   used[mask]=true;all=all|mask;bindings[#bindings+1]={mask=mask,action=item[3]}
+  end
+ end
+ C.bindings=bindings;C.shoulders=all;C.reset()
+end
 function C.reset(raw,modifier)
  C.oldShoulders=(raw or 0)&C.shoulders;C.oldModifier=modifier==true
  C.blocked=0;C.comboHeld=false;C.pending=nil
@@ -13,18 +31,19 @@ function C.evaluate(raw,modifier,allowed)
  local pressed=held&(~C.oldShoulders);C.oldShoulders=held
  local armed=C.oldModifier;C.oldModifier=modifier==true
  if not allowed then C.blocked=0;C.comboHeld=false;return nil,0,false end
+ local released=C.blocked&(~held)
  C.blocked=C.blocked&held
  local direction
- -- Only a new shoulder edge AFTER the modifier was held claims the chord.
- -- Lock first, then taunt (or simultaneous presses) remains normal gameplay.
- if modifier and armed and held~=0 then
-  if held==C.LB and pressed&C.LB~=0 then direction=-1
-  elseif held==C.RB and pressed&C.RB~=0 then direction=1 end
+ -- Modifier first; one fresh secondary edge; multiple held bindings cancel.
+ if modifier and armed and held~=0 and(held&(held-1))==0 then
+  for _,binding in ipairs(C.bindings)do
+   if held==binding.mask and(pressed&binding.mask)~=0 then direction=binding.action;break end
+  end
   if direction then C.blocked=C.blocked|held;C.comboHeld=true end
  end
  local suppressTaunt=C.comboHeld and modifier
  if not modifier then C.comboHeld=false end
- return direction,C.blocked,suppressTaunt
+ return direction,C.blocked|released,suppressTaunt
 end
 local function keyboardActive(pad)
  -- PadInput is shared by keyboard and controller input. Query the native
@@ -73,6 +92,8 @@ function C.process(pad)
  end
  local gm=sdk.get_managed_singleton('app.GameManager')
  local allowed=C.enabled and gm and not gm:call('get_isPause') and not gm:call('get_isPauseMenu') and not gm:call('get_isShopPause')
+ -- A taunt button reassigned onto a selected secondary must remain ordinary input.
+ if (taunt&C.shoulders)~=0 then C.reset(raw,modifier);C.error='Taunt overlaps a switching button';return end
  local direction,blocked,suppressTaunt=C.evaluate(raw,modifier,allowed)
  if blocked~=0 or suppressTaunt then
   local mask=suppressTaunt and 8 or 0
@@ -90,6 +111,11 @@ function C.process(pad)
  if direction then C.pending=direction end
  C.error=nil
 end
+local switch=_G.dmc5_live_switch
+if switch and switch.config then
+ local ok,why=pcall(C.configure,switch.config)
+ if not ok then C.enabled=false;C.error=tostring(why)end
+end
 if not C.hooked then
  sdk.hook(sdk.find_type_definition('app.PlayerManager'):get_method('doUpdate'),function(args)
   C.manager=sdk.to_managed_object(args[2])
@@ -97,7 +123,16 @@ if not C.hooked then
   if C.pending then
    local direction=C.pending;C.pending=nil
    local S=_G.dmc5_live_switch
-   if S and S.step then S.step(direction)end
+   if S then
+    if type(direction)=='number'then if S.step then S.step(direction)end
+    elseif S.request then
+     local target=({nero=0,dante=1,vergil=4})[direction]
+     if target and(S.current==0 or S.current==1 or S.current==4)then
+      if S.requestDirect then S.requestDirect(target)
+      elseif target~=S.current then S.request(target)end
+     end
+    end
+   end
   end
  end,function(ret)return ret end)
  sdk.hook(sdk.find_type_definition('app.PadInput'):get_method('update'),function(args)

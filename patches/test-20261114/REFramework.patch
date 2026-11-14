@@ -1,0 +1,152 @@
+diff --git a/src/D3D12Hook.cpp b/src/D3D12Hook.cpp
+index f61d7c94..11986a33 100644
+--- a/src/D3D12Hook.cpp
++++ b/src/D3D12Hook.cpp
+@@ -513,6 +513,8 @@ bool D3D12Hook::hook() {
+     return m_hooked;
+ }
+ 
++#include "PresentChain.hpp"
++
+ void D3D12Hook::hook_impl() {
+     spdlog::info("Initializing hooks");
+ 
+@@ -522,6 +524,7 @@ void D3D12Hook::hook_impl() {
+     m_swapchain_hook.reset();
+ 
+     m_is_phase_1 = true;
++    m_present_downstream = nullptr;
+ 
+     auto& present_fn = s_swapchain_vtable[8]; // Present
+     m_present_hook = std::make_unique<PointerHook>(&present_fn, &D3D12Hook::present);
+@@ -572,7 +575,9 @@ HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_int
+     if (d3d12->m_is_phase_1) {
+         present_fn = d3d12->m_present_hook->get_original<decltype(D3D12Hook::present)*>();
+     } else {
+-        present_fn = d3d12->m_swapchain_hook->get_method<decltype(D3D12Hook::present)*>(8);
++        present_fn = d3d12->m_present_downstream
++            ? reinterpret_cast<decltype(D3D12Hook::present)*>(d3d12->m_present_downstream)
++            : d3d12->m_swapchain_hook->get_method<decltype(D3D12Hook::present)*>(8);
+     }
+ 
+     HWND swapchain_wnd{nullptr};
+@@ -593,7 +598,13 @@ HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_int
+         // vtable hooks are the least intrusive
+         // And doing a global pointer replacement seems to have
+         // conflicts with Streamline's hooks, causing unexplainable crashes
++        d3d12->m_present_downstream = reinterpret_cast<void*>(present_fn);
+         d3d12->m_present_hook.reset();
++        const auto current_present = reinterpret_cast<decltype(D3D12Hook::present)*>((*(void***)swap_chain)[8]);
++        const bool install_present = present_chain_needs_entry(current_present, present_fn, &D3D12Hook::present);
++        // Only freeze the continuation when a newer outer hook already calls
++        // us. Otherwise keep following the shared table so late overlays run.
++        if (install_present) d3d12->m_present_downstream = nullptr;
+ 
+         // vtable hook the swapchain instead of global hooking
+         // this seems safer for whatever reason
+@@ -601,12 +612,18 @@ HRESULT WINAPI D3D12Hook::present(IDXGISwapChain3* swap_chain, uint64_t sync_int
+         // dont hook present though via this hook so other hooks dont get confused
+         d3d12->m_swapchain_hook = std::make_unique<VtableHook>(swap_chain);
+         //d3d12->m_swapchain_hook->hook_method(2, (uintptr_t)&D3D12Hook::release);
+-        d3d12->m_swapchain_hook->hook_method(8, (uintptr_t)&D3D12Hook::present);
++        if (install_present) {
++            d3d12->m_swapchain_hook->hook_method(8, (uintptr_t)&D3D12Hook::present);
++        } else {
++            spdlog::info("Preserving outer Present hook and stable downstream continuation");
++        }
+         d3d12->m_swapchain_hook->hook_method(13, (uintptr_t)&D3D12Hook::resize_buffers);
+         d3d12->m_swapchain_hook->hook_method(14, (uintptr_t)&D3D12Hook::resize_target);
+         d3d12->m_is_phase_1 = false;
+ 
+-        present_fn = d3d12->m_swapchain_hook->get_method<decltype(D3D12Hook::present)*>(8);
++        present_fn = d3d12->m_present_downstream
++            ? reinterpret_cast<decltype(D3D12Hook::present)*>(d3d12->m_present_downstream)
++            : d3d12->m_swapchain_hook->get_method<decltype(D3D12Hook::present)*>(8);
+     }
+ 
+     d3d12->m_inside_present = true;
+diff --git a/src/D3D12Hook.hpp b/src/D3D12Hook.hpp
+index ed1841fa..8020cf7e 100644
+--- a/src/D3D12Hook.hpp
++++ b/src/D3D12Hook.hpp
+@@ -122,6 +122,9 @@ protected:
+     bool m_is_phase_1{ true };
+     bool m_inside_present{false};
+     bool m_ignore_next_present{false};
++    // Stable continuation captured before the bootstrap pointer is removed.
++    // VtableHook::get_method reads the shared table, which other hooks mutate.
++    void* m_present_downstream{nullptr};
+ 
+     std::unique_ptr<PointerHook> m_present_hook{};
+     std::unique_ptr<VtableHook> m_swapchain_hook{};
+diff --git a/src/REFramework.cpp b/src/REFramework.cpp
+index 18ac5bd3..6cdf21bb 100644
+--- a/src/REFramework.cpp
++++ b/src/REFramework.cpp
+@@ -132,8 +132,10 @@ void REFramework::hook_monitor() {
+         }
+ 
+         if (m_initialized && m_wnd != 0 && now - m_last_message_time > std::chrono::seconds(5)) {
+-            if (m_windows_message_hook != nullptr && m_windows_message_hook->is_hook_intact()) {
+-                spdlog::info("Windows message hook is still intact, ignoring...");
++            // Preserve a live registration even when another subclass is on top.
++            // The top WNDPROC alone cannot tell us whether our link is broken.
++            if (m_windows_message_hook != nullptr && m_windows_message_hook->is_valid_for(m_wnd)) {
++                spdlog::info("Windows message registration preserved; automatic rewrapping disabled");
+                 m_last_message_time = now;
+                 m_last_sendmessage_time = now;
+                 m_sent_message = false;
+@@ -2464,6 +2466,12 @@ bool REFramework::initialize_windows_message_hook() {
+ 
+     if (m_first_frame || m_message_hook_requested || m_windows_message_hook == nullptr) {
+         m_last_message_time = std::chrono::steady_clock::now();
++        // Keep the original forwarding link while this window registration
++        // exists. Rewrapping an external subclass can create RF -> external -> RF.
++        if (m_windows_message_hook != nullptr && m_windows_message_hook->is_valid_for(m_wnd)) {
++            m_message_hook_requested = false;
++            return true;
++        }
+         m_windows_message_hook.reset();
+         m_windows_message_hook = std::make_unique<WindowsMessageHook>(m_wnd);
+         m_windows_message_hook->on_message = [this](auto wnd, auto msg, auto w_param, auto l_param) {
+diff --git a/src/WindowsMessageHook.cpp b/src/WindowsMessageHook.cpp
+index c26847f1..f3016b07 100644
+--- a/src/WindowsMessageHook.cpp
++++ b/src/WindowsMessageHook.cpp
+@@ -40,7 +40,9 @@ WindowsMessageHook::WindowsMessageHook(HWND wnd)
+     std::lock_guard _{ g_proc_mutex };
+     spdlog::info("Initializing WindowsMessageHook");
+ 
+-    utility::ThreadSuspender suspender{};
++    // g_proc_mutex serializes publication with window_proc. Freezing unrelated
++    // threads here can strand a heap lock while ThreadSuspender allocates its
++    // next state, deadlocking first-frame initialization (DMC5 hang 12564).
+ 
+     g_windows_message_hook = this;
+ 
+@@ -57,7 +59,7 @@ WindowsMessageHook::~WindowsMessageHook() {
+     std::lock_guard _{ g_proc_mutex };
+     spdlog::info("Destroying WindowsMessageHook");
+ 
+-    utility::ThreadSuspender suspender{};
++    // The same mutex protects removal; no process-wide suspension is needed.
+ 
+     remove();
+     g_windows_message_hook = nullptr;
+diff --git a/src/WindowsMessageHook.hpp b/src/WindowsMessageHook.hpp
+index 096668ce..f1be342e 100644
+--- a/src/WindowsMessageHook.hpp
++++ b/src/WindowsMessageHook.hpp
+@@ -39,6 +39,12 @@ public:
+ 
+     bool is_hook_intact();
+ 
++    // Another subclass may wrap our window_proc. Replacing this object then
++    // loses its original-proc link and can make the combined chain circular.
++    bool is_valid_for(HWND wnd) const {
++        return wnd != nullptr && m_wnd == wnd && m_original_proc != nullptr;
++    }
++
+ private:
+     HWND m_wnd;
+     WNDPROC m_original_proc;

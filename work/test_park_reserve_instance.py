@@ -4,8 +4,10 @@ from lupa import LuaRuntime
 lua=LuaRuntime()
 lua.execute('''
 sdk={find_type_definition=function()return {get_methods=function()return {}end}end}
+resourcesStub={}
 dofile=function(path)
  if path:find('runtime')then return {permits=function()return allowed end}end
+ if path:find('resources')then return resourcesStub end
  return {}
 end
 allowed=true;writes=0

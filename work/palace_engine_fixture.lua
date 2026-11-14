@@ -47,6 +47,7 @@ function actor(id)
  function p:set_field(name,value)assert(name=='<theDTGauge>k__BackingField');self.sin=value end
  function p:call(name,a,b)
   if name=='get_playerID'then return self.id
+  elseif name=='get_camera'then return nil
   elseif name=='get_Enable'then return true
   elseif name=='get_cachedHitController'then return {get_field=function()return {call=function()return 1/fps end}end}
   elseif name=='get_playerData'then return self.data

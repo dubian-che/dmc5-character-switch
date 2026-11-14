@@ -37,6 +37,7 @@ function actor(id)
  end
  function p:call(name,value)
   if name=='get_playerID'then return self.id
+  elseif name=='get_ownerVergilPL'then return self.ownerVergil
   elseif name=='get_Enable'then return self.enabled
   elseif name=='get_Enabled'then return self.componentEnabled
   elseif name=='get_hp'then return self.hp
@@ -69,6 +70,7 @@ local function roster()
 end
 manager={call=function(_,name,id)
  if name=='get_manualPlayer'then return active
+ elseif name=='getCostumeID'then return selectedCostumes and selectedCostumes[id]or 0
  elseif name=='getPlayerByID'then return players[id]
  elseif name=='getPlayerNum'then return #roster()
  elseif name=='getPlayer'then return roster()[id+1]
@@ -110,6 +112,7 @@ sdk={hook=function(method,pre,post)
   error(name)
  end}
 re={on_frame=function(fn)frames[#frames+1]=fn end,on_draw_ui=function()error('release registered a debug panel')end}
+_VERSION='Lua 5.4';package.loadlib=function()return function(k)return true,key_down[k]or false end end
 key_down={};config_reads=0
 reframework={is_key_down=function(_,key)return key_down[key] or false end}
 json={load_file=function()config_reads=config_reads+1;return key_config end,

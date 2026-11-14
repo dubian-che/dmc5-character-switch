@@ -16,3 +16,11 @@ deliveries/
 .env
 .env.*
 work/*.png
+
+/native/audio-pool-fix/build/
+
+/native/keyboard-input/build/
+/native/keyboard-input/build-inputs.json
+/work/*/
+!/work/fixtures/
+!/work/reframework-window-fix/

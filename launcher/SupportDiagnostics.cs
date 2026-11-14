@@ -1,4 +1,4 @@
-#if SUPPORT_DIAGNOSTICS
+﻿#if SUPPORT_DIAGNOSTICS
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -52,7 +52,7 @@ namespace Dmc5SwitchLauncher
                     Directory.CreateDirectory(Path.GetDirectoryName(path));
                     Atomic(path, Payload());
                     Atomic(own, Encoding.UTF8.GetBytes(SupportExport.Json.Serialize(new { version = Version, hash = expected, installedUtc = DateTime.UtcNow.ToString("o") })));
-                    return "诊断记录已启用；重启游戏后开始记录。F8 可标记故障现场。";
+                    return "诊断记录已启用；重启游戏后开始记录。F10 可标记故障现场。";
                 }
                 if (current != null) File.Delete(path);
                 if (File.Exists(own)) File.Delete(own);
@@ -160,7 +160,7 @@ namespace Dmc5SwitchLauncher
             if (invalid > 0) warnings.Add("忽略 " + invalid + " 条不完整记录（可能来自崩溃或正在写入）。");
             if (rows.Count == 0) warnings.Add("没有可用状态历史：请启用诊断记录、重启游戏后复现；既有原生日志仍会单独收集。");
             else if (Number(Get(rows[0], "utc")) > Epoch(from) + 5) warnings.Add("实际记录不足30分钟；覆盖范围以首末样本为准。");
-            warnings.Add("普通采样约每秒一次、约每5秒批量落盘；突发崩溃可能丢失最后数秒。F8 标记会立即落盘。");
+            warnings.Add("普通采样约每秒一次、约每5秒批量落盘；突发崩溃可能丢失最后数秒。F10 标记会立即落盘。");
             warnings.Add("截图为导出时的游戏画面，不是此前30分钟的视频回放。");
             var nativeEvents = ReadEvents(from, now, warnings);
             object system = SystemInfo(root, warnings);
@@ -213,13 +213,16 @@ namespace Dmc5SwitchLauncher
                         inventory.Add(FileIdentity(root, path, name));
                     }
                     inventory.Add(FileIdentity(root, Path.Combine(root, "dinput8.dll"), "dinput8.dll"));
+                    inventory.Add(FileIdentity(root, Path.Combine(root, "winmm.dll"), "winmm.dll"));
+                    string audioFix = Path.Combine(root, ModInstaller.Store, "audio-pool-fix-status.json");
+                    if (SafeFile(root, audioFix)) text("音效修复状态.json", Redact(File.ReadAllText(audioFix, Encoding.UTF8), root));
                     inventory.Add(FileIdentity(root, SupportRecorder.PathIn(root), SupportRecorder.Name));
                     text("安装文件校验.json", Json.Serialize(inventory));
                     string config = ConfigStore.ConfigPath(root);
                     if (SafeFile(root, config))
                     {
                         string warning; Bindings b = ConfigStore.Load(config, out warning);
-                        text("按键配置.json", Json.Serialize(new { nextKey = b.Next, previousKey = b.Previous, controllerCombo = b.ControllerCombo, warning = warning }));
+                        text("按键配置.json", Json.Serialize(new { nextKey = b.Next, previousKey = b.Previous, neroKey = b.Nero, danteKey = b.Dante, vergilKey = b.Vergil, controllerCombo = b.ControllerCombo, padPrevious = b.PadPrevious, padNext = b.PadNext, padNero = b.PadNero, padDante = b.PadDante, padVergil = b.PadVergil, warning = warning }));
                     }
                     if (screenshotPath != null && File.Exists(screenshotPath)) add("现场截图.png", ReadBinary(screenshotPath, 16 * 1024 * 1024));
                     var pictures = new List<string>(); int pictureIndex = 0;
@@ -248,7 +251,7 @@ namespace Dmc5SwitchLauncher
                         requestedFromUtc = from.ToString("o"), requestedUntilUtc = now.ToString("o"),
                         firstSampleUtc = rows.Count > 0 ? Get(rows[0], "utc") : null,
                         lastSampleUtc = rows.Count > 0 ? Get(rows[rows.Count - 1], "utc") : null,
-                        samples = rows.Count, markers = rows.Count(r => Convert.ToString(Get(r, "kind")) == "F8"),
+                        samples = rows.Count, markers = rows.Count(r => (Convert.ToString(Get(r, "kind")) == "F10" || Convert.ToString(Get(r, "kind")) == "F8")),
                         screenshot = screenshotStatus, screenshotUtc = screenshotPath == null ? null : DateTime.UtcNow.ToString("o"),
                         warnings = warnings.Distinct().ToArray(), files = files.ToArray(),
                         privacy = "仅游戏诊断、Mod按键、游戏窗口和主动附加截图；不含游戏存档、账号目录、全局键盘历史或其他窗口截图。" };
@@ -330,7 +333,7 @@ namespace Dmc5SwitchLauncher
             if (screenshot) html.Append("<h2>导出时游戏画面</h2><img src='现场截图.png'><p class='muted'>全屏模式可能出现黑图；请结合主动附加截图。</p>");
             foreach (string image in pictures) html.Append("<img src='").Append(HttpUtility.HtmlAttributeEncode(image)).Append("'>");
             html.Append(@"<h2>最近30分钟状态</h2><div id='coverage' class='muted'></div><input id='time' type='range' min='0' value='0'><div id='cards' class='cards'></div><h3>该时刻角色状态</h3><table><thead><tr><th>角色</th><th>主控</th><th>显示 / 启用</th><th>HP / DT / SDT</th><th>自动辅助</th><th>机械手</th></tr></thead><tbody id='party'></tbody></table><h3>线索</h3><pre id='hints'></pre><details><summary>该时刻完整原始状态</summary><pre id='raw'></pre></details><h2>导出范围与完整性</h2><pre>");
-            html.Append(HttpUtility.HtmlEncode(Json.Serialize(manifest))).Append("</pre><script>const rows=").Append(data).Append(@";const $=id=>document.getElementById(id), names={0:'尼禄',1:'但丁',2:'V',4:'维吉尔'};const val=v=>v==null?'—':v,fmt=t=>new Date(t*1000).toISOString(),arr=v=>Array.isArray(v)?v:Object.values(v||{});function cell(tr,v){let c=document.createElement('td');c.textContent=v==null?'—':String(v);tr.appendChild(c)}function show(){let r=rows[+$('time').value];if(!r){$('coverage').textContent='没有状态记录：需先启用诊断并重启游戏。';return}$('cards').textContent='';for(const [k,v]of Object.entries({'UTC时间':fmt(r.utc),'关卡 / 模式':val(r.mission)+' / '+val(r.mode),'实际主控':names[r.manual]||r.manual,'Mod状态':r.modStage||'不可用','采样类型':r.kind})){let c=document.createElement('div');c.className='card';c.textContent=k+'：'+v;$('cards').appendChild(c)}$('party').textContent='';let hints=[];for(const p of arr(r.players)){let tr=document.createElement('tr');for(const v of [names[p.id]||p.id,p.manual?'是':'',p.ready===false?'加载中／未就绪':val(p.draw)+' / '+val(p.enabled),val(p.hp)+' / '+val(p.dt)+' / '+val(p.sin),p.automatic,p.arms?JSON.stringify(p.arms):'—'])cell(tr,v);$('party').appendChild(tr);if(p.manual&&(p.enabled===false||p.draw===false||p.bodyMeshes===0))hints.push('当前主控存在隐藏、禁用或无绑定模型的读数。');if(p.manual&&p.automatic)hints.push('当前角色自动辅助开启，可能解释自动出招、蓄力或换武器。')}if(r.modCurrent!=null&&r.manual!=null&&r.modCurrent!==r.manual)hints.push('Mod记录与实际主控不同；检查加载、原生交接与切人顺序。');if(r.error)hints.push(r.error);if(arr(r.enemies).some(e=>e.masterLockRestricted))hints.push('部分敌人禁止本地主控锁定；旁观敌人可能正常如此，需结合场景判断。');$('hints').textContent=hints.join('\n')||'本样本未产生上述提示。';$('raw').textContent=JSON.stringify(r,null,2)}$('time').max=Math.max(0,rows.length-1);$('time').value=Math.max(0,rows.length-1);$('time').oninput=show;if(rows.length)$('coverage').textContent='实际覆盖 '+fmt(rows[0].utc)+' 至 '+fmt(rows[rows.length-1].utc)+'，共 '+rows.length+' 个样本（含F8标记）。';show();</script>");
+            html.Append(HttpUtility.HtmlEncode(Json.Serialize(manifest))).Append("</pre><script>const rows=").Append(data).Append(@";const $=id=>document.getElementById(id), names={0:'尼禄',1:'但丁',2:'V',4:'维吉尔'};const val=v=>v==null?'—':v,fmt=t=>new Date(t*1000).toISOString(),arr=v=>Array.isArray(v)?v:Object.values(v||{});function cell(tr,v){let c=document.createElement('td');c.textContent=v==null?'—':String(v);tr.appendChild(c)}function show(){let r=rows[+$('time').value];if(!r){$('coverage').textContent='没有状态记录：需先启用诊断并重启游戏。';return}$('cards').textContent='';for(const [k,v]of Object.entries({'UTC时间':fmt(r.utc),'关卡 / 模式':val(r.mission)+' / '+val(r.mode),'实际主控':names[r.manual]||r.manual,'Mod状态':r.modStage||'不可用','采样类型':r.kind})){let c=document.createElement('div');c.className='card';c.textContent=k+'：'+v;$('cards').appendChild(c)}$('party').textContent='';let hints=[];for(const p of arr(r.players)){let tr=document.createElement('tr');for(const v of [names[p.id]||p.id,p.manual?'是':'',p.ready===false?'加载中／未就绪':val(p.draw)+' / '+val(p.enabled),val(p.hp)+' / '+val(p.dt)+' / '+val(p.sin),p.automatic,p.arms?JSON.stringify(p.arms):'—'])cell(tr,v);$('party').appendChild(tr);if(p.manual&&(p.enabled===false||p.draw===false||p.bodyMeshes===0))hints.push('当前主控存在隐藏、禁用或无绑定模型的读数。');if(p.manual&&p.automatic)hints.push('当前角色自动辅助开启，可能解释自动出招、蓄力或换武器。')}if(r.modCurrent!=null&&r.manual!=null&&r.modCurrent!==r.manual)hints.push('Mod记录与实际主控不同；检查加载、原生交接与切人顺序。');if(r.error)hints.push(r.error);if(arr(r.enemies).some(e=>e.masterLockRestricted))hints.push('部分敌人禁止本地主控锁定；旁观敌人可能正常如此，需结合场景判断。');$('hints').textContent=hints.join('\n')||'本样本未产生上述提示。';$('raw').textContent=JSON.stringify(r,null,2)}$('time').max=Math.max(0,rows.length-1);$('time').value=Math.max(0,rows.length-1);$('time').oninput=show;if(rows.length)$('coverage').textContent='实际覆盖 '+fmt(rows[0].utc)+' 至 '+fmt(rows[rows.length-1].utc)+'，共 '+rows.length+' 个样本（含F10标记）。';show();</script>");
             return html.ToString();
         }
         public static string CaptureGame(string root, List<string> warnings, out string status)

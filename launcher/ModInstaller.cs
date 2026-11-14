@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -70,6 +70,10 @@ namespace Dmc5SwitchLauncher
             using (var output = new MemoryStream()) { gzip.CopyTo(output); dll = output.ToArray(); }
             if (Hash(dll) != RuntimeHash) throw new InvalidDataException("内置加载器校验失败，请重新获取启动器。");
             payload.Add("dinput8.dll", dll);
+            payload.Add("winmm.dll", Resource("winmm.dll"));
+            payload.Add("reframework/data/dmc5_keyboard.dll", Resource("dmc5_keyboard.dll"));
+            payload.Add(Store + "/KeyboardInput-LICENSE.txt", Resource("KeyboardInput-LICENSE.txt"));
+            payload.Add(Store + "/AudioPoolFix-LICENSE.txt", Resource("AudioPoolFix-LICENSE.txt"));
         }
         public static string ModulePath(string name)
         { return "reframework/" + (name == "dmc5_live_switch.lua" ? "autorun/" : "data/") + name; }
@@ -261,6 +265,9 @@ namespace Dmc5SwitchLauncher
                 bool keptRuntime = false;
                 if (install)
                 {
+                    string nativeCurrent = FileHash(Target("winmm.dll"));
+                    if (nativeCurrent != null && !state.Files.Any(f => f.Path == "winmm.dll") && nativeCurrent != Hash(payload["winmm.dll"]))
+                        throw new IOException("游戏目录已有其它 winmm.dll，已停止安装并保留原样。请先确认该文件所属的 Mod。");
                     foreach (var item in payload)
                     {
                         string path = Target(item.Key), current = FileHash(path);
@@ -309,7 +316,7 @@ namespace Dmc5SwitchLauncher
                 }
                 if (running()) throw new InvalidOperationException("游戏刚刚启动，已取消文件更改。请退出游戏后重试。");
                 Commit(changes, install ? (Action)VerifyInstalled : null);
-                if (install) return "安装完成，15 个脚本和 REFramework 加载器均已逐项校验。按键设置已保留。原文件备份在游戏目录的 " + Store + "/history/。";
+                if (install) return "安装完成，15 个脚本、REFramework 加载器和音效修复模块均已逐项校验。按键设置已保留。原文件备份在游戏目录的 " + Store + "/history/。";
                 return (untouched == 0 ? "卸载完成，已恢复安装前的同名文件；按键设置和备份保留。" : "已移除可确认的本 Mod 文件；另有 " + untouched + " 个未知同名文件保留，需手动确认。") + (keptRuntime ? "原有或共用加载器保留。" : "");
             }
         }

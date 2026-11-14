@@ -5,6 +5,7 @@ import json
 import shutil
 import subprocess
 import tempfile
+import os
 
 script = Path('scripts/Install-WindowHookFix.ps1').resolve()
 artifact = Path('work/reframework-window-fix')
@@ -31,7 +32,13 @@ with tempfile.TemporaryDirectory(prefix='dmc5-native-fix-test-') as tmp:
         command+='& '+quote(script)+' -GameRoot '+quote(game)
         if rollback: command+=' -Rollback'
         args=['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-Command',command]
-        result=subprocess.run(args,capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW,timeout=30)
+        env=os.environ.copy()
+        # pwsh's PSModulePath can omit Windows PowerShell's builtin modules.
+        modules=Path(os.environ['SystemRoot'])/'System32/WindowsPowerShell/v1.0/Modules'
+        previous=os.environ.get('PSModulePath','')
+        env={k:v for k,v in env.items() if k.upper()!='PSMODULEPATH'}
+        env['PSModulePath']=str(modules)+os.pathsep+previous
+        result=subprocess.run(args,capture_output=True,creationflags=subprocess.CREATE_NO_WINDOW,timeout=30,env=env)
         assert (result.returncode==0)==ok, result.stdout+result.stderr
     write_state(info['PriorHash'])
     run(); assert sha(dll)==info['FixedHash']

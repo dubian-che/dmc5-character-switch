@@ -6,6 +6,82 @@ local runtime=dofile('reframework/data/dmc5_switch_runtime.lua')
 local seen={}
 local bikeIDs
 local neroChargeDataMethod,neroChargeAttempt
+local danteSheathAttempt
+local danteRoundTripAttempt
+function P.refreshDanteRoundTrip(player)
+ if player:call('get_playerID')~=1 or player:get_field('IsEnemyDante')then return false end
+ -- Native changeWeaponS's DSD (2) branch initializes S01 only at SM level >=2.
+ if player:call('get_currentWeaponS')~=2 then return false end
+ local charge=player:get_field('<chargeWeaponS01>k__BackingField')
+ if not charge or charge:call('get_parameter')then return false end
+ if charge:call('get_padInput')or charge:call('get_padInputFlag')~=0 then return false end
+ local data=player:call('get_playerData')
+ local style=data and data:get_field('SwordMaster')
+ local level=style and style:get_field('Level')
+ if type(level)~='number'or level<2 or level%1~=0 then return false end
+ local characteristic=player:get_field('CharacteristicParameter')
+ local skills=characteristic and characteristic:get_field('ChargeSkill')
+ local parameter=skills and skills:get_field('DS_RoundTrip')
+ local input=player:call('get_padInput')
+ if not parameter or not input then return false end
+ local old=danteRoundTripAttempt
+ if old and old.player==player and old.charge==charge and old.parameter==parameter and old.input==input then return false end
+ local method
+ local expected={'app.ChargeParameter','app.PadInput','System.UInt32','System.Int32','System.Int32'}
+ for _,candidate in ipairs(sdk.find_type_definition('app.ChargeChecker'):get_methods())do
+  if candidate:get_name()=='setData'then
+   local params=candidate:get_param_types();local matches=#params==#expected
+   if matches then for i,name in ipairs(expected)do if params[i]:get_full_name()~=name then matches=false;break end end end
+   if matches then method=candidate;break end
+  end
+ end
+ assert(method,'Dante Round Trip setData overload unavailable')
+ danteRoundTripAttempt={player=player,charge=charge,parameter=parameter,input=input}
+ -- Match native changeWeaponS at RVA 18671FD / 1867217: style key,
+ -- start level zero, unlimited upper level, then native S01 callbacks.
+ method:call(charge,parameter,input,4096,0,2147483647)
+ player:call('setupChargeWeaponS01')
+ assert(charge:call('get_parameter')==parameter and charge:call('get_padInput')==input,'Dante Round Trip charge did not initialize')
+ P.danteRoundTripRepairs=(P.danteRoundTripRepairs or 0)+1;P.danteRoundTripWarning=nil
+ return true
+end
+function P.refreshDanteSheath(player)
+ if player:call('get_playerID')~=1 or player:get_field('IsEnemyDante')then return false end
+ local charge=player:get_field('<chargeSheath>k__BackingField')
+ if not charge or charge:call('get_parameter')then return false end
+ -- A configured channel belongs to the native weapon lifecycle. Only fill
+ -- the omitted channel, never reset a valid held charge or its handlers.
+ if charge:call('get_padInput')or charge:call('get_padInputFlag')~=0 then return false end
+ local data=player:call('get_playerData')
+ local sword=data and data:get_field('Sword')
+ local level=sword and sword:get_field('SheathCharge')
+ if type(level)~='number'or level<1 or level%1~=0 then return false end
+ local characteristic=player:get_field('CharacteristicParameter')
+ local skills=characteristic and characteristic:get_field('ChargeSkill')
+ local parameter=skills and skills:get_field('DS_SheathExpansion')
+ local input=player:call('get_padInput')
+ if not parameter or not input then return false end
+ local old=danteSheathAttempt
+ if old and old.player==player and old.charge==charge and old.parameter==parameter and old.input==input then return false end
+ -- PlayerDante's native initialization uses SheathCharge-1, melee flag 1,
+ -- and unlimited upper level, followed by setupChargeSheath callbacks.
+ local method
+ local expected={'app.ChargeParameter','app.PadInput','System.UInt32','System.Int32','System.Int32'}
+ for _,candidate in ipairs(sdk.find_type_definition('app.ChargeChecker'):get_methods())do
+  if candidate:get_name()=='setData'then
+   local params=candidate:get_param_types();local matches=#params==#expected
+   if matches then for i,name in ipairs(expected)do if params[i]:get_full_name()~=name then matches=false;break end end end
+   if matches then method=candidate;break end
+  end
+ end
+ assert(method,'Dante sheath setData overload unavailable')
+ danteSheathAttempt={player=player,charge=charge,parameter=parameter,input=input}
+ method:call(charge,parameter,input,1,level-1,2147483647)
+ player:call('setupChargeSheath')
+ assert(charge:call('get_parameter')==parameter and charge:call('get_padInput')==input,'Dante sheath charge did not initialize')
+ P.danteSheathRepairs=(P.danteSheathRepairs or 0)+1;P.danteSheathWarning=nil
+ return true
+end
 function P.refreshNeroCharge(player)
  if player:call('get_playerID')~=0 then return false end
  local data=player:call('get_playerData')
@@ -103,6 +179,10 @@ function P.apply(player)
  end
  -- Native allOpen omits Dr. Faust's purchase level; enum Lv4 is 3.
  if id==1 then
+  local chargeOk,chargeWhy=pcall(P.refreshDanteSheath,player)
+  if not chargeOk then P.danteSheathWarning=tostring(chargeWhy)end
+  local roundOk,roundWhy=pcall(P.refreshDanteRoundTrip,player)
+  if not roundOk then P.danteRoundTripWarning=tostring(roundWhy)end
   data:get_field('FaustHat'):set_field('Gambling',3)
   local ok,why=pcall(P.lockRedBike,player)
   if not ok then P.redBikeWarning=tostring(why)end

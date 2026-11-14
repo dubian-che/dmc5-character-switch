@@ -33,6 +33,11 @@ foreach ($name in $modules) {
     }
     $resources += "/resource:$modulePath,payload.$name"
 }
+$nativeDir = Join-Path $projectRoot 'native\audio-pool-fix'
+$resources += "/resource:$(Join-Path $nativeDir 'winmm.dll'),payload.winmm.dll"
+$resources += "/resource:$(Join-Path $projectRoot 'native\keyboard-input\dmc5_keyboard.dll'),payload.dmc5_keyboard.dll"
+$resources += "/resource:$(Join-Path $projectRoot 'native\keyboard-input\KeyboardInput-LICENSE.txt'),payload.KeyboardInput-LICENSE.txt"
+$resources += "/resource:$(Join-Path $nativeDir 'AudioPoolFix-LICENSE.txt'),payload.AudioPoolFix-LICENSE.txt"
 $sources = @($source, $installer)
 $defines = @()
 $extraReferences = @()
@@ -48,6 +53,7 @@ if ($TestBuild) { $sources += $tests; $defines += '/define:MOD_TESTS' }
 & $compiler /nologo /target:winexe /platform:anycpu /optimize+ /codepage:65001 /utf8output "/out:$exe" "/win32manifest:$manifest" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll /reference:System.Core.dll $defines $extraReferences $resources $sources
 if ($LASTEXITCODE -ne 0) { throw '启动器编译失败。' }
 Copy-Item -LiteralPath (Join-Path $dependencyDir 'LICENSE.txt') -Destination (Join-Path $outDir 'REFramework-LICENSE.txt')
+Copy-Item -LiteralPath (Join-Path $projectRoot 'native\audio-pool-fix\AudioPoolFix-LICENSE.txt') -Destination (Join-Path $outDir 'AudioPoolFix-LICENSE.txt')
 $readme = if ($DiagnosticBuild) { 'support\使用说明.txt' } else { 'launcher\使用说明.txt' }
 Copy-Item -LiteralPath (Join-Path $projectRoot $readme) -Destination (Join-Path $outDir '使用说明.txt')
 # Only remove the intermediate file created at this exact, checked output path.

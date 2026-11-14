@@ -12,7 +12,7 @@ if ($PSEdition -eq 'Core') {
 }
 $project = Split-Path $PSScriptRoot -Parent
 $folder = Join-Path $project 'dist\DMC5切人启动器'
-$expected = @('DMC5SwitchLauncher.exe','使用说明.txt','REFramework-LICENSE.txt')
+$expected = @('DMC5SwitchLauncher.exe','使用说明.txt','REFramework-LICENSE.txt','AudioPoolFix-LICENSE.txt')
 if (Compare-Object $expected @(Get-ChildItem -LiteralPath $folder | Select-Object -ExpandProperty Name)) {
     throw '正式目录含额外或缺失文件。'
 }
@@ -33,7 +33,7 @@ function ReadResource($owner,$name) {
 }
 $test = [Reflection.Assembly]::LoadFile((Join-Path $project 'work\launcher-tests\DMC5SwitchLauncher.exe'))
 $names = @($assembly.GetManifestResourceNames())
-if ($names.Count -ne 17 -or (Compare-Object $names @($test.GetManifestResourceNames()))) { throw '嵌入资源列表不符。' }
+if ($names.Count -ne 21 -or (Compare-Object $names @($test.GetManifestResourceNames()))) { throw '嵌入资源列表不符。' }
 foreach ($name in $names) {
     if ((ReadResource $assembly $name) -ne (ReadResource $test $name)) { throw "测试包与正式包内容不同：$name" }
 }
@@ -55,6 +55,25 @@ foreach ($name in $names | Where-Object { $_ -like 'payload.*.lua' }) {
             (Get-FileHash -LiteralPath (Join-Path $GameRoot $relative)).Hash -ne $hash) { throw "安装或归属记录不一致：$file" }
     }
     $rows += [pscustomobject]@{File=$file;Hash=$hash}
+}
+foreach ($native in @('winmm.dll','AudioPoolFix-LICENSE.txt')) {
+    $source = Join-Path $project "native\audio-pool-fix\$native"
+    $hash = (Get-FileHash -LiteralPath $source).Hash
+    if ($hash -ne (ReadResource $assembly ("payload.$native"))) { throw "Native payload/source mismatch: $native" }
+    if ($VerifyInstalled) {
+        $relative = if ($native -eq 'winmm.dll') { 'winmm.dll' } else { '.dmc5-character-switch/AudioPoolFix-LICENSE.txt' }
+        $record = @($manifest.Files | Where-Object { $_.Path -eq $relative })
+        if ($record.Count -ne 1 -or $record[0].InstalledHash -ne $hash -or (Get-FileHash -LiteralPath (Join-Path $GameRoot $relative)).Hash -ne $hash) { throw "Installed native payload mismatch: $native" }
+    }
+}
+foreach ($native in @('dmc5_keyboard.dll','KeyboardInput-LICENSE.txt')) {
+    $hash = (Get-FileHash -LiteralPath (Join-Path $project ("native\keyboard-input\" + $native))).Hash
+    if ($hash -ne (ReadResource $assembly ("payload." + $native))) { throw "Keyboard payload mismatch: $native" }
+    if ($VerifyInstalled) {
+        $relative = if ($native -eq 'dmc5_keyboard.dll') { 'reframework/data/dmc5_keyboard.dll' } else { '.dmc5-character-switch/KeyboardInput-LICENSE.txt' }
+        $record = @($manifest.Files | Where-Object { $_.Path -eq $relative })
+        if ($record.Count -ne 1 -or $record[0].InstalledHash -ne $hash -or (Get-FileHash -LiteralPath (Join-Path $GameRoot $relative)).Hash -ne $hash) { throw "Installed keyboard payload mismatch: $native" }
+    }
 }
 if ($rows.Count -ne 15) { throw '正式脚本数量不是15。' }
 $sourceFiles = @($rows | Select-Object -ExpandProperty File) + 'README.txt'

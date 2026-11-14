@@ -42,6 +42,7 @@ function actor(id)
  end}
  function p:call(name,value)
   if name=='get_playerID'then return self.id end
+  if name=='get_ownerVergilPL'then return self.ownerVergil end
   if name=='get_isEventMove'then return self.event end
   if name=='get_cachedActivateMediator'then return med end
   if name=='get_cachedCharacterController'then return {call=function(_,n,v)assert(n=='set_Enabled');writes=writes+1;p.world=v end}end

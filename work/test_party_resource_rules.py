@@ -19,7 +19,7 @@ function actor(id,count,stack,hp,enabled,sin,defer)
    assert(a>=0 and a<=7);s.calls=s.calls+1
    if defer then s.stack=1 else s.count=1 end
   elseif name=='get_isTheDevilTrigger' then return s.sin
-  elseif name=='get_isDevilTrigger' then return false
+  elseif name=='get_isDevilTrigger' or name=='get_isSummonGilver' then return false
   elseif name=='set_devilTriggerBtnOnTimer' or name=='set_devilTriggerPressTimer' then assert(a==0)
   elseif name=='set_isDevilTriggerTimeLineTriggered' then assert(a==false)
   elseif name=='resetDevilTriggerPressCharge' then
@@ -27,7 +27,7 @@ function actor(id,count,stack,hp,enabled,sin,defer)
   else error(name)end
  end}
  function p:get_field(name)
-  assert(name=='IsDoppel'or name=='summonedSwordsControllers');return nil
+  assert(name=='IsDoppel'or name=='summonedSwordsControllers'or name=='isChangeMaterialVmode'or name=='summonGilver');return nil
  end
  return p,s
 end

@@ -10,6 +10,50 @@ local resources=dofile('reframework/data/dmc5_switch_resources.lua')
 local lifecycle=dofile('reframework/data/dmc5_switch_lifecycle.lua')
 local palace=dofile('reframework/data/dmc5_switch_palace.lua')
 local entryAction
+function M.guardStoryV(manager)
+ -- Native V stays alive for timeline/audio cleanup. Isolate only an idle,
+ -- non-manual V which is listening to the same local pad as the selected hero.
+ local gm=sdk.get_managed_singleton('app.GameManager')
+ if not gm or gm:call('get_gameMode')~=0 or runtime.storyReload then M.storyVState=nil;return end
+ local mission=gm:call('get_missionNo');local serial=runtime.storyRetrySerial
+ local state=M.storyVState
+ if not state or state.manager~=manager or state.mission~=mission or state.serial~=serial then
+  state={manager=manager,mission=mission,serial=serial,actors={}};M.storyVState=state
+ end
+ local active=manager:call('get_manualPlayer')
+ if not active then M.storyVState=nil;return end
+ local native=runtime.nativeControl
+ local supported=active and M.names[active:call('get_playerID')] and not(native and native.id==2)
+ local input=supported and active:call('get_padInput')
+ local count=manager:call('getPlayerNum')
+ if type(count)~='number'or count<0 or count>32 then return end
+ local present={}
+ for i=0,count-1 do
+  local p=manager:call('getPlayer',i)
+  if p and p:call('get_playerID')==2 then
+   present[p]=true
+   local med=p:call('get_cachedActivateMediator')
+   local eligible=input and p~=active and med and p:call('get_padInput')==input and
+    not p:call('get_ownerVergilPL') and not p:call('get_isEventMove')
+   local saved=state.actors[p]
+   if eligible and(p:call('get_isThinkEnable')==false or saved)then
+    if not saved then
+     saved={think=p:call('get_isThinkEnable'),draw=med:call('get_drawSelf')}
+     state.actors[p]=saved;M.storyVGuards=(M.storyVGuards or 0)+1
+    end
+    if p:call('get_isThinkEnable')~=true then p:call('set_isThinkEnable',true)end
+    if med:call('get_drawSelf')~=false then med:call('set_drawSelf',false);med:call('applyDrawSelf')end
+   elseif saved and med then
+    p:call('set_isThinkEnable',saved.think)
+    med:call('set_drawSelf',saved.draw);med:call('applyDrawSelf')
+    state.actors[p]=nil
+   elseif saved then state.actors[p]=nil
+   end
+  end
+ end
+ -- Forget torn-down instances without re-enabling or calling into them.
+ for p in pairs(state.actors)do if not present[p]then state.actors[p]=nil end end
+end
 function M.restoreWorldCollision(player)
  -- The player/behavior-tree/attack-collider enable flags do not enable the
  -- native world CharacterController. A parked Dante can otherwise animate
@@ -51,10 +95,30 @@ function M.placeTarget(player,position,rotation,airborne,jumpCount)
  end
  M.clearMomentum(player)
 end
+function M.captureLock(player)
+ if not player:call('get_isLockOn')then return nil end
+ local object=player:call('get_lockOnTarget')
+ if not object or not object:call('get_isValid')then return nil end
+ return object:call('get_target')
+end
+function M.restoreLock(player,work)
+ -- Transfer the target work into this player's own wrapper. Sharing the old
+ -- LockOnObject would let either actor's native cleanup clear the other's lock.
+ if not work or not player:call('get_isLockOn')or not work:call('get_isValid')or
+  not work:call('get_isLockOnEnable')or work:call('get_isDying')then return false end
+ if not player:call('lockOnTargetCheck',work)then return false end
+ local object=player:call('get_lockOnTarget')
+ if not object then return false end
+ object:call('set_target',work);object:call('set_isActive',true)
+ player:call('set_isManualLockOn',true)
+ return true
+end
 function M.hideReserve(manager,player)
  if not runtime.permits(manager)then return false end
  if player==manager:call('get_manualPlayer')then return false end
  if player:call('get_playerID')==2 then
+  -- World of V owns this actor's lifetime, including its native completion.
+  if player:call('get_ownerVergilPL')then return false end
   local gm=sdk.get_managed_singleton('app.GameManager')
   if not gm or gm:call('get_gameMode')==0 then return false end
  end
@@ -79,6 +143,8 @@ function M.parkNonParty(manager,player)
  local owner=manager:call('get_manualPlayer')
  if not owner or not M.names[owner:call('get_playerID')] or player==owner then return false end
  if player:call('get_playerID')~=2 or player:call('get_isEventMove')then return false end
+ -- Pausing Vergil's World of V summon prevents the native skill from finishing.
+ if player:call('get_ownerVergilPL')then return false end
  player:call('pausePlayer');player:call('set_Enable',false)
  M.parkWorldCollision(player)
  local med=player:call('get_cachedActivateMediator')
@@ -96,6 +162,24 @@ function M.parkReserve(manager,player)
  -- the playable Vergil clone and the native Dante boss.
  if id==4 and player:get_field('IsDoppel')then return false end
  if id==1 and player:get_field('IsEnemyDante')then return false end
+ -- Palace floor activation can revive the child while its reserve owner is
+ -- already parked. Inspect before the settled-owner early return, every scan.
+ if id==4 and player:call('get_Enable')==false then
+  local v=player:get_field('summonGilver')
+  if v and v:call('get_ownerVergilPL')==player then
+   local childMed=v:call('get_cachedActivateMediator')
+   local childVisible=childMed and(childMed:call('get_drawSelf')or childMed:call('get_updateSelf'))
+   local gm=sdk.get_managed_singleton('app.GameManager')
+   if (v:call('get_Enable')or childVisible)and gm and gm:call('get_gameMode')==3 then
+    local draw,update
+    if childMed then draw=childMed:call('get_drawSelf');update=childMed:call('get_updateSelf')end
+    resources.finishWorldV(player)
+    if resources.parkWorldVChild(player,v,draw,update)then
+     resources.worldVReserveRepairs=(resources.worldVReserveRepairs or 0)+1
+    end
+   end
+  end
+ end
  local med=player:call('get_cachedActivateMediator')
  if not med then return false end
  local object=player:call('get_GameObject')
@@ -189,6 +273,10 @@ function M.dismissDoppel(player)
 end
 local function bindControl(p)
  p:call('set_MediationType',2)
+ -- Player.doStart caches ManualPlayer=1 / PuppetPlayer=2 from mediation.
+ -- A later control handoff does not refresh it. Keep the native sound
+ -- expression WwiseNetworkModeValue on the manual path for the selected hero.
+ p:call('set_networkWwiseType',1)
  -- IsThinkEnable selects AI decisions, not component activation. Native
  -- Player update skips manual commands when it is true (visible in BP).
  -- Restore the human-input path on both handoff and same-actor recovery.
@@ -220,6 +308,37 @@ function M.recoverSelected(manager,player)
  if collider then collider:call('set_Enabled',true)end
  showPlayer(player)
 end
+function M.capturePresentation(player,camera)
+ local id=player:call('get_playerID')
+ local state={camera=camera,sin=(id==1 or id==4)and player:call('get_isTheDevilTrigger')or false}
+ if camera then
+  local ok,owned=pcall(function()
+   return camera:call('get_isFinishCamera')and camera:call('isFinishCameraTarget',player:call('get_GameObject'))
+  end)
+  state.finish=ok and owned==true
+ end
+ return state
+end
+function M.finishPresentation(state)
+ -- Only retire a special camera actually targeting the departing actor.
+ -- Ordinary follow cameras and event cameras retain their native state.
+ local errors={}
+ local function attempt(fn)
+  local ok,why=pcall(fn);if not ok then errors[#errors+1]=tostring(why)end
+ end
+ if state.finish then attempt(function()state.camera:call('EndFinishCamera',true)end)end
+ -- Global LDR reset is limited to a confirmed outgoing Sin DT transition.
+ -- Never clear all scene post-effects or Faust gameplay marking lists.
+ if state.sin then
+  attempt(function()
+   local effects=sdk.get_managed_singleton('app.AppEffectManager')
+   assert(effects,'AppEffectManager unavailable')
+   effects:call('ClearLDRPostProcess')
+   effects:call('initLDRPostProcessParam')
+  end)
+ end
+ M.presentationError=#errors>0 and table.concat(errors,'; ')or nil
+end
 function M.switch(manager,id,source)
  assert(runtime.permits(manager),'Scene is outside party scope')
  assert(M.names[id],'Unsupported playable character')
@@ -249,6 +368,8 @@ function M.switch(manager,id,source)
  local airborne=not previous:call('isGround') or air.speedY>0.01
  local setting=sdk.get_managed_singleton('app.MissionSettingManager'):call('get_Setting')
  local previousID=previous:call('get_playerID')
+ local lockedTarget=M.captureLock(previous)
+ local presentation=M.capturePresentation(previous,camera)
  local function activate(p)
   bindControl(p)
   p:call('set_Enable',true);p:call('resumePlayer')
@@ -275,6 +396,7 @@ function M.switch(manager,id,source)
   M.dismissDoppel(previous)
   resources.retire(previous)
   activate(target)
+  resources.finishWorldV(target)
   -- Repair both summons and transformations retained by earlier versions.
   M.dismissDoppel(target)
   resources.ensureHuman(target)
@@ -293,6 +415,7 @@ function M.switch(manager,id,source)
   -- Apply last: warp, Wait/Fall entry and control rebinding may reset motion.
   -- Include zero vectors on the ground to erase a reserve's parked inertia.
   M.clearMomentum(target)
+  M.restoreLock(target,lockedTarget)
   previous:call('pausePlayer');previous:call('set_Enable',false)
   M.parkWorldCollision(previous)
   local med=previous:call('get_cachedActivateMediator')
@@ -310,6 +433,7 @@ function M.switch(manager,id,source)
   end)
   error(why)
  end
+ M.finishPresentation(presentation)
  -- Deferred action/control updates can still write the parked position in
  -- this native update. Finalize once after it, never pin the actor per frame.
  M.placementSerial=(M.placementSerial or 0)+1
@@ -326,6 +450,9 @@ function M.switch(manager,id,source)
   -- Native activation in this update can reapply the reserve's draw flags.
   -- Complete visibility once with placement; never pin ordinary actions.
   showPlayer(target)
+  -- Native entry/control updates can replace the target during this update.
+  -- Complete the handoff once; later target changes remain entirely native.
+  M.restoreLock(target,lockedTarget)
  end)
  if palace.selected then palace.selected(id,manager,previousID,source)end
  hud.request(manager,id)

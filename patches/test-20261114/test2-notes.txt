@@ -1,0 +1,4 @@
+20261114-test2
+Lua payload includes costume-1 and dante-round-trip-1; Lua sources are shipped directly in payload.
+REFramework, 3S, audio fix and keyboard bridge binaries are unchanged from test1.
+Bilingual installer retained. No temporary observers or private diagnostic records included.

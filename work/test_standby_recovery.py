@@ -24,6 +24,7 @@ function scenario(bits)
  end}
  player={call=function(_,name,value)
   if name=='set_MediationType' then state.mediation=value
+  elseif name=='set_networkWwiseType'then state.wwise=value
   elseif name=='set_isThinkEnable' then state.think=value
   elseif name=='subNetworkSubType' then state.sub=state.sub&(~value)
   elseif name=='updateNetworkCheckType' then state.master=state.sub&3==0
@@ -56,7 +57,7 @@ for bits in (129, 130, 131, 16384):
     lua.globals().scenario(bits)
     core.switch(lua.globals().manager, 1)
     s = lua.globals().state
-    assert s.master and s.pad == 'live' and s.tree and s.world
+    assert s.master and s.pad == 'live' and s.tree and s.world and s.wwise == 1
     assert s.draw and s.updating and s.enabled and not s.paused
     assert not s.think, 'native AI decision path still bypasses manual input'
     assert s.sub == (bits & ~3), 'unrelated native flags changed'

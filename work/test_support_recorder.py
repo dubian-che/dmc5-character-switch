@@ -1,4 +1,4 @@
-"""Support recorder: bounded retention, crash persistence, safe reads and F8."""
+"""Support recorder: bounded retention, crash persistence, safe reads and F10."""
 import json
 from pathlib import Path
 from lupa import LuaRuntime
@@ -19,11 +19,12 @@ def table(v):
 lua.globals().encode=lambda v,_:json.dumps(plain(v),separators=(',',':'))
 lua.globals().decode=lambda s:table(json.loads(s))
 lua.execute('''
+dofile=function()return {read_key=function(k)assert(k==121);return key end,input={source='test'}}end
 now=1800000000;key=false;mutations=0;readCount=0;diskWrites=0;errors=0;files={};callbacks={}
 os.time=function()return now end;os.clock=function()return .123 end
 json={dump_string=encode,load_string=decode}
 re={on_frame=function(f)callbacks[#callbacks+1]=f end}
-reframework={is_key_down=function(_,k)assert(k==119);return key end}
+reframework={is_key_down=function(_,k)assert(k==121);return key end}
 log={error=function()errors=errors+1 end}
 io={open=function(path,mode)
  assert(path:match('^dmc5_support/slot%-%d%d%.jsonl$'),'unexpected file access')
@@ -90,8 +91,8 @@ assert(#callbacks==1 and dmc5_support_recorder.samples==2001)
 local count=0;for _ in pairs(files)do count=count+1 end;assert(count==32,'unbounded disk files')
 assert(dmc5_support_recorder.writes<2000/3,'unbatched disk flushes')
 local before=dmc5_support_recorder.samples;key=true;frame();frame();frame()
-assert(dmc5_support_recorder.samples==before+1,'held F8 repeated')
-key=false;frame();key=true;frame();assert(dmc5_support_recorder.samples==before+1,'F8 cooldown bypassed')
+assert(dmc5_support_recorder.samples==before+1,'held F10 repeated')
+key=false;frame();key=true;frame();assert(dmc5_support_recorder.samples==before+1,'F10 cooldown bypassed')
 key=false;now=now+3;frame();key=true;frame();key=false;frame()
 assert(dmc5_support_recorder.samples==before+3)
 ''')
@@ -99,7 +100,7 @@ records=[]
 for _,data in lua.globals().files.items():
     records.extend(json.loads(line)for line in data.splitlines())
 assert len(records)<=32*65
-assert any(r['kind']=='F8'for r in records)
+assert any(r['kind']=='F10'for r in records)
 assert all(len(r['players'])==3 for r in records)
 assert next(p for p in records[-1]['players']if p['id']==0)['arms']==[3,1,7,2]
 assert all(r['players'][0]['running'] is True and r['players'][0]['scriptedMove'] is False for r in records)
@@ -118,4 +119,4 @@ lua.execute('failing=true;now=now+5;frame();now=now+5;frame();assert(errors==1 a
 assert lua.globals().readCount<600000, 'unexpected per-sample native read expansion'
 for forbidden in ['sdk.hook','set_field','write_dword',":call('set_",'os.execute','io.popen']:
     assert forbidden not in source,forbidden
-print('PASS: 2000-second/120000-frame simulation; 32 rotating slots, batch writes, F8 edge/cooldown/flush, same-minute restart persistence, exact ordered arms, running-vs-scripted state, cold-actor guard, isolated disk failures and zero gameplay mutation.')
+print('PASS: 2000-second/120000-frame simulation; 32 rotating slots, batch writes, F10 edge/cooldown/flush, same-minute restart persistence, exact ordered arms, running-vs-scripted state, cold-actor guard, isolated disk failures and zero gameplay mutation.')

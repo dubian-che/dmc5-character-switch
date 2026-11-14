@@ -1,13 +1,19 @@
 # DMC5 Character Switch / 鬼泣 5 三人切换 Mod
 
 Windows 平台的尼禄、但丁、维吉尔实时切换 Mod，使用 REFramework 和游戏原生资源。
-当前待验证版本：**pre-0.0.4**；已发布版本：**pre-0.0.1**。
+当前发布：**20261114-test2（测试版）**，包含适配版 3S 1.24h 与中英双语安装器。
 
-[GitHub 下载安装包](https://github.com/dubian-che/dmc5-character-switch/releases/tag/pre-0.0.1) · [Gitee 发行版](https://gitee.com/gutssss/dmc5-character-switch/releases)
+[GitHub 下载最新修复包](https://github.com/dubian-che/dmc5-character-switch/releases/tag/20261114-test2)
 
-两个平台的发行版附件分别维护，请按对应发行版页面实际列出的附件下载。
+解压安装包，运行 `00-Setup.cmd`，按 **L** 切换中文 / English，按 **1** 安装。安装前退出游戏。
+安装器核验已测试游戏程序版本，自动备份并保留已有按键与 3S 设置。诊断导出按 **2**，恢复按 **3**。
 
-当前源码基线：**release-50-native-v-reload**；可选诊断启动器：**support-50.1**。
+最新修复包括 EX 服装跨场景保留、但丁首次切入的魔剑幻影剑蓄力、32 MiB 声音池、V 的世界与血宫残留 V、3S 启动和菜单共存。
+首次幻影剑修复已有实测和 F10 记录验证；服装修复获初步实测确认。并非所有 3S 功能均已验证，曾出现的 M3 结算闪退仍需继续观察。
+
+`installer/` 为发布包安装器源码与清单；`patches/test-20261114/` 包含 REFramework、3S 修改及基线、许可证。
+发布 ZIP 中包含运行所需文件。安装器源码目录本身不含完整 payload，不能直接安装。
+**下方 C# 启动器是历史构建路径，其内嵌加载器并非本次已验证版本；不要用旧启动器覆盖 test2 安装。**
 
 ## 功能
 
@@ -41,7 +47,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Launcher.ps1
 ```
 
 输出在 `dist/DMC5远端诊断启动器/`。该版本可安装只读记录器，导出最近 30 分钟的诊断 ZIP 到桌面。
-记录从启用并重启游戏后开始，不会补录此前历史。支持 F8 现场标记、问题描述及可选的游戏截图。
+记录从启用并重启游戏后开始，不会补录此前历史。当前发布包支持 F10 现场标记（旧工具文档可能仍写 F8）、问题描述及可选的游戏截图。
 导出包可能包含游戏日志、相关系统错误和崩溃信息，请按实际需要提供给维护者。
 正式构建不包含该记录器。详情见 [诊断版使用说明](support/使用说明.txt)。
 

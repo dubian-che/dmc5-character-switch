@@ -1,0 +1,162 @@
+{
+  "version": "20261114-test2",
+  "revision": "world-v-camera-5.palace-v-4.costume-1.dante-round-trip-1",
+  "gameExeSha256": "5523CB79FE13858335E893CA7ED98B4021A96B8CEC92940058CB5D58D09D4169",
+  "files": [
+    {
+      "path": "reframework/autorun/dmc5_live_switch.lua",
+      "sha256": "E67C14849A65195308BCB2CB0FEEA46EE8B72CD87F3BA8C99487A48D2B4678EA",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_party_hud.lua",
+      "sha256": "D08409E09B41FE8998FC7C34EAB79627BBA874BFB1448E1818C720AD0A7FE713",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_core.lua",
+      "sha256": "8F89125992575F7035A9B63B722CD42783E175FF85DD2C2E861A0B723358A1BC",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_hud.lua",
+      "sha256": "65FDFD9E6BE97B4741059A2E223BB00DCBBECF4A43ABD1258A8135CFBEC974BE",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_controller.lua",
+      "sha256": "C28BBA45C62A6427DF1DAC4F353A9ACF9DB4F66A600367C4ABB6467F145F602D",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_keys.lua",
+      "sha256": "C70086082A1BAC400EA63EAEE06CA642B0D34E99EB1E8F609EEECFC5D45F3FFA",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_lifecycle.lua",
+      "sha256": "E91C2115C13D915541D233066D1040F1CBC264F99D962653D485AA44E2DF544E",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_progression.lua",
+      "sha256": "0A00F2611746D8768B07DEBDECD03AE1F6B28A98EB848E6D3B509FC3AF8D1962",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_regen.lua",
+      "sha256": "1516FFD618A9EC7326B695CFF609401FDBE9B2A5CCCF593B1BBB775000747C32",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_resources.lua",
+      "sha256": "A7F5F8D8B146685CA2FA68D97DBBC08F56D6BFD825BBF6F247883798E0C23B3E",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_voice.lua",
+      "sha256": "8BD3FD949C935770DFF047B252D21902D5EC028CAEC0F3F863F9C203FE09CD3B",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_runtime.lua",
+      "sha256": "3A67B50E5F2AAE25D87210C02E0F32410E67B00BD61D2E0AA562363686A53D1D",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_loader.lua",
+      "sha256": "A7C4ADF220853A40836323193A98C425CAB10850A430C04B62B5A6DFBCD562CB",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_input_menu.lua",
+      "sha256": "0A275B0FD1127AF6C5C0B8910F0CFC5CB4B18A54F6460C36509FE2454EDABF15",
+      "preserveExisting": false
+    },
+    {
+      "path": "dinput8.dll",
+      "sha256": "D3EF0CC518CDEFBD4428283E952A1BEDC5882A98CC91D6121ABAA71ED30D6D73",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_switch_palace.lua",
+      "sha256": "7CE127D20F720A3ACAB99BDDE30CF791A7C1DAD49E952A3A74E5D2719BA168EC",
+      "preserveExisting": false
+    },
+    {
+      "path": "winmm.dll",
+      "sha256": "B653D60CBCF17291F6014B07B336A819AD39563593541CA7D1B63D531AE5D05B",
+      "preserveExisting": false
+    },
+    {
+      "path": ".dmc5-character-switch/AudioPoolFix-LICENSE.txt",
+      "sha256": "D5C2224982B0B95A16B098A561335FA93F3EAF4D0AA964B7843EDB986DF78DC8",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/data/dmc5_keyboard.dll",
+      "sha256": "CF43432BD7846D786C3955B236577F5F2E91AB2D9D754B946E43C5FA8A08AE0A",
+      "preserveExisting": false
+    },
+    {
+      "path": ".dmc5-character-switch/KeyboardInput-LICENSE.txt",
+      "sha256": "639008ACB0BF32FE8FC4FD067DA5138C4FBA4D5C7547BD7AD6903C800ED8E874",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/autorun/zzz_dmc5_support_recorder.lua",
+      "sha256": "E17DBF6BB9E5E9F53255C80E53E2315E4A052C486A5EF359A548319851182094",
+      "preserveExisting": false
+    },
+    {
+      "path": "reframework/plugins/sssiyan.dll",
+      "sha256": "D3C68B45AE2EB68F6FCD11E05ED4DFEE4DCB496C267F353D72083042E2504E29",
+      "preserveExisting": false
+    },
+    {
+      "path": "Collab Trainer/Scripts/BalrogScript.lua",
+      "sha256": "51730CB543FF5691807B3D53E67044613F62F01F05E45A31C6055D14656CD5C3",
+      "preserveExisting": true
+    },
+    {
+      "path": "Collab Trainer/Scripts/BreakerSwitcher.lua",
+      "sha256": "264FEB8979DD6404C005E6237204B873C885BAE7E2674A3853C0DAD982F0FEA4",
+      "preserveExisting": true
+    },
+    {
+      "path": "Collab Trainer/Scripts/doppelweaponswitcher.lua",
+      "sha256": "A1793A2A679F1A600FDF35F8B0E459BF0C09802A094F71BD1943B3BDC9785C19",
+      "preserveExisting": true
+    },
+    {
+      "path": "Collab Trainer/Scripts/enumerator.lua",
+      "sha256": "87F48A4F28EA062FBA65BC8110822EFEE3BD283B1FF42845781D74516BE6C1FD",
+      "preserveExisting": true
+    },
+    {
+      "path": "Collab Trainer/Scripts/HoldToMash.lua",
+      "sha256": "F27AB10AE84B29023EBB33081BAD559AA48A1BBE9394D07340BB6BBB2DA4B933",
+      "preserveExisting": true
+    },
+    {
+      "path": "Collab Trainer/Scripts/PlayerManipulator.lua",
+      "sha256": "072E7082C20262BE62CF35DCA194A1DBEAB7F1D871933FC89BE8A4D5A3AF90FB",
+      "preserveExisting": true
+    },
+    {
+      "path": "Collab Trainer/Scripts/vergilloadweaponoverride.lua",
+      "sha256": "B3A869E07A36014CA51E612D928F41A0CF86D8CA6E5E7933AB31CDD697113783",
+      "preserveExisting": true
+    },
+    {
+      "path": "Collab Trainer/EmListEditor/BpDefault/BP.json",
+      "sha256": "76B3011BFFC025B94792C76B9004A6C3333EAB3B8854CA6D441A566E00C2EDDE",
+      "preserveExisting": true
+    },
+    {
+      "path": "reframework/data/dmc5_switch_config.json",
+      "sha256": "781CB2FB70EABD4DC2C0FF3749D3735B7A77FDA21460E957B75EB13376DFA2E6",
+      "preserveExisting": true
+    }
+  ]
+}

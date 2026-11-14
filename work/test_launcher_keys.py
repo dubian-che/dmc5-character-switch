@@ -25,6 +25,7 @@ def read_config(value):
 config, warning = read_config(saved)
 assert config.nextKey == 118 and config.previousKey == 119 and not config.controllerCombo
 assert warning is None
+assert config.padPrevious=='LT' and config.padNext=='RT' and config.padNero=='A' and config.padDante=='B' and config.padVergil=='Y'
 assert set(report['keyCodes']) == {i for i in range(256) if k.valid_key(i)}
 for value in (None, {}):
     config, warning = read_config(value)

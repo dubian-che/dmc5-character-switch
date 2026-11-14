@@ -48,10 +48,12 @@ function R.selectManual(manager,setting,id)
   mission=loader and loader.storyMission,retrySerial=R.storyRetrySerial}
 end
 local function manualLookupBegin(manager)
- R.maintainStoryReload(manager)
+ -- Nested native hooks clear REFramework's current-storage reference on return.
+ -- Capture this invocation's table before any call that may enter another hook.
  local storage=thread.get_hook_storage()
  storage.manualIdentityFrames=storage.manualIdentityFrames or {}
  local frame={};table.insert(storage.manualIdentityFrames,frame)
+ R.maintainStoryReload(manager)
  if (R.controlDepth or 0)>0 then return end
  local loader=_G.dmc5_switch_loader
  local gm=sdk.get_managed_singleton('app.GameManager')
@@ -111,6 +113,7 @@ function R.prepareStoryRetry(settingManager)
  -- must not become the incoming story's native spawn identity.
  if setting:call('get_ControllPlayerID')~=id then setting:call('set_ControllPlayerID',id)end
  R.storyRetrySerial=(R.storyRetrySerial or 0)+1
+ R.storyReloadTail=nil
  R.storyReload={owner=settingManager,setting=setting,id=id,mission=gm:call('get_missionNo'),serial=R.storyRetrySerial,
   manager=R.manager,actor=R.manager:call('getPlayerByID',id),readyFrames=0,phase='scheduled'}
  R.controlSelection=nil
@@ -129,7 +132,8 @@ function R.finishStoryRetry(settingManager,serial)
  return true
 end
 function R.maintainStoryReload(manager)
- local reload=R.storyReload;if not reload then return false end
+ local reload=R.storyReload
+ if not reload then R.maintainStoryReloadTail(manager);return false end
  local gm=sdk.get_managed_singleton('app.GameManager')
  if not gm or gm:call('get_gameMode')~=0 or gm:call('get_missionNo')~=reload.mission then R.storyReload=nil;return false end
  local lookup=gm:call('findManualPlayerID')
@@ -159,6 +163,7 @@ function R.maintainStoryReload(manager)
  else reload.readyFrames=0 end
  if reload.readyFrames<2 then return true end
  R.nativeControl={manager=manager,setting=setting,id=reload.id,mode=0,mission=reload.mission,retrySerial=R.storyRetrySerial}
+ R.storyReloadTail={manager=manager,id=reload.id,mission=reload.mission,serial=R.storyRetrySerial,actor=actor,readyFrames=0,repairs=0}
  R.storyReload=nil;R.storyRetryError=nil;R.invalidate()
  return false
 end
@@ -166,6 +171,33 @@ function R.begin(manager)
  R.invalidate();R.pending=nil;R.updating=true;if manager then R.manager=manager end
  local ok,why=pcall(R.maintainStoryReload,manager)
  if not ok then R.storyRetryError=tostring(why)end
+ if R.storyReloadTail then R.afterUpdate(function()R.maintainStoryReloadTail(manager,true)end)end
+end
+function R.maintainStoryReloadTail(manager,post)
+ local tail=R.storyReloadTail;if not tail or(R.controlDepth or 0)>0 then return end
+ local gm=sdk.get_managed_singleton('app.GameManager')
+ if not gm or gm:call('get_gameMode')~=0 or gm:call('get_missionNo')~=tail.mission or
+  R.storyRetrySerial~=tail.serial then R.storyReloadTail=nil;return end
+ local lookup=gm:call('findManualPlayerID')
+ if lookup~=tail.id then R.storyReloadTail=nil;return end
+ local settings=sdk.get_managed_singleton('app.MissionSettingManager')
+ local setting=settings and settings:call('get_Setting')
+ if not setting then tail.readyFrames=0;return end
+ -- Preserve an explicit native V route. This guard covers the outgoing
+ -- supported hero's delayed writes, never a newly selected native V.
+ if setting:call('get_ControllPlayerID')==2 then R.storyReloadTail=nil;return end
+ if setting:call('get_ControllPlayerID')~=tail.id then
+  setting:call('set_ControllPlayerID',tail.id);tail.repairs=tail.repairs+1
+  R.storyTailRepairs=(R.storyTailRepairs or 0)+1;tail.readyFrames=0
+ end
+ if not manager then return end
+ if manager~=tail.manager or manager:call('getPlayerByID',tail.id)~=tail.actor then R.storyReloadTail=nil;return end
+ R.nativeControl={manager=manager,setting=setting,id=tail.id,mode=0,mission=tail.mission,retrySerial=tail.serial}
+ if not post then return end
+ local loader=_G.dmc5_switch_loader
+ if not loader or loader.manager~=manager or loader.task or loader.count~=3 or not loader.playable then tail.readyFrames=0;return end
+ tail.readyFrames=tail.readyFrames+1
+ if tail.readyFrames>=2 then R.storyReloadTail=nil end
 end
 function R.permits(manager)
  manager=manager or R.manager;if not manager then return false end
@@ -187,6 +219,33 @@ function R.permits(manager)
 end
 function R.afterUpdate(fn)
  if R.updating then R.pending=R.pending or {};R.pending[#R.pending+1]=fn else fn()end
+end
+function R.guardReserveIdentity(manager)
+ -- Additional loading can write the mission ID after its Lua task finishes.
+ -- Restore the captured route in the native update POST callback as well.
+ local native=R.nativeControl;local loader=_G.dmc5_switch_loader
+ if not native or native.manager~=manager or not loader or loader.manager~=manager then return end
+ local gm=sdk.get_managed_singleton('app.GameManager')
+ local settings=sdk.get_managed_singleton('app.MissionSettingManager')
+ local setting=settings and settings:call('get_Setting')
+ if not gm or gm:call('get_gameMode')~=0 or native.mode~=0 or
+  native.mission~=gm:call('get_missionNo')or native.setting~=setting or
+  native.retrySerial~=R.storyRetrySerial then return end
+ local generation=loader.generation;local serial=R.storyRetrySerial
+ if R.reserveIdentityGuard and R.reserveIdentityGuard.native==native and
+  R.reserveIdentityGuard.generation==generation then return end
+ local guard={native=native,generation=generation};R.reserveIdentityGuard=guard
+ R.afterUpdate(function()
+  if R.reserveIdentityGuard==guard then R.reserveIdentityGuard=nil end
+  if R.storyReload or R.storyRetrySerial~=serial or loader.manager~=manager or loader.generation~=generation or
+   gm:call('get_gameMode')~=0 or gm:call('get_missionNo')~=native.mission or
+   settings:call('get_Setting')~=setting then return end
+  if setting:call('get_ControllPlayerID')~=native.id then
+   setting:call('set_ControllPlayerID',native.id)
+   R.reserveIdentityRepairs=(R.reserveIdentityRepairs or 0)+1
+  end
+  R.nativeControl=native
+ end)
 end
 function R.finish()
  local pending=R.pending;R.pending=nil;R.updating=false;R.invalidate()

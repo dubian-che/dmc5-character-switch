@@ -10,6 +10,7 @@ events={}
 function actor(id,clone)
  local p={id=id,clone=clone,dt=6000,sin=7000,controllers={}}
  function p:get_field(n)
+  if n=='isChangeMaterialVmode'or n=='summonGilver'then return nil end
   if n=='IsDoppel'then return self.clone end
   assert(n=='summonedSwordsControllers')
   return {call=function(_,method,i)
@@ -19,6 +20,7 @@ function actor(id,clone)
  end
  function p:call(n,...)
   if n=='get_playerID'then return self.id end
+  if n=='get_isSummonGilver'then return false end
   if n=='get_isDevilTrigger'or n=='get_isTheDevilTrigger'then return false end
   assert(n=='set_devilTriggerBtnOnTimer'or n=='set_devilTriggerPressTimer'or
    n=='resetDevilTriggerPressCharge'or n=='set_isDevilTriggerTimeLineTriggered')

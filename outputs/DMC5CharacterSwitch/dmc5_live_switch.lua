@@ -14,6 +14,7 @@ local runtime=dofile('reframework/data/dmc5_switch_runtime.lua')
 local loader=dofile('reframework/data/dmc5_switch_loader.lua')
 local S={version=core.version or 1,build='release-50-native-v-reload',stage='ready',current=-1,available={}}
 _G.dmc5_live_switch=S
+S.revision='checkpoint-v-input-audio-2.custom-controls-1.world-v-1.lock-return-1.presentation-1.world-v-end-1.keyboard-1.world-v-camera-5.palace-v-4.costume-1.dante-round-trip-1'
 local retryOk,retryWhy=pcall(function()
  local t=sdk.find_type_definition('app.MissionSettingManager')
  for _,name in ipairs({'retryMission','restartMissionCheckPoint'})do
@@ -37,22 +38,43 @@ end)
 if not retryOk then S.storyRetryInstallError=tostring(retryWhy)end
 dofile('reframework/data/dmc5_switch_input_menu.lua')
 local request=nil
+local history=nil
 local keys={}
+local function clearHistory()
+ history=nil;S.previousCharacter=nil
+end
 function S.request(id,source)
- if runtime.storyReload then return false end
- if not core.names[id] then return false end
- if runtime.manager and not runtime.permits()then return false end
+ S.requestCount=(S.requestCount or 0)+1
+ local function reject(reason)S.lastRequest={id=id,source=source or 'user',accepted=false,reason=reason};return false end
+ if runtime.storyReload then return reject('checkpoint reload')end
+ if not core.names[id] then return reject('unsupported character')end
+ if runtime.manager and not runtime.permits()then return reject('outside party scene')end
  source=source or 'user'
  -- Keep one desired selection. Explicit user choices replace an older wait;
  -- automatic Palace restoration must never replace a user's choice.
- if request and(source=='palace'or(request.id==id and request.source==source))then return false end
+ if request and(source=='palace'or(request.id==id and request.source==source))then return reject('request already pending')end
  request={id=id,generation=loader.manager and loader.generation or nil,elapsed=0,source=source}
  if source=='palace'then
   local palace=_G.dmc5_switch_palace
   request.run=palace and palace.run;request.phase=request.run and request.run.stage
  end
  S.stage='requested '..core.names[id];S.error=nil
+ S.lastRequest={id=id,source=source,accepted=true}
  return true
+end
+function S.requestDirect(id)
+ if not core.names[id]then return false end
+ local manager=loader.manager
+ if not manager or runtime.storyReload or not runtime.permits(manager)then return false end
+ local active=manager:call('get_manualPlayer')
+ local current=active and active:call('get_playerID')
+ if not core.names[current]then return false end
+ if history and(history.manager~=manager or history.generation~=loader.generation or history.current~=current)then clearHistory()end
+ if id==current then
+  if not history then return false end
+  id=history.id
+ end
+ return S.request(id)
 end
 function S.getCycleID()return request and request.id or S.current end
 function S.hidePalaceExtra(bp)
@@ -66,7 +88,7 @@ function S.hidePalaceExtra(bp)
  local active=manager:call('get_manualPlayer')
  if not active or not core.names[active:call('get_playerID')]then return false end
  local extra=manager:call('getPlayerByID',2)
- if not extra or extra==active then return false end
+ if not extra or extra==active or extra:call('get_ownerVergilPL')then return false end
  local med=extra:call('get_cachedActivateMediator');local object=extra:call('get_GameObject')
  if med and med:call('get_drawSelf')==false and object and object:call('get_DrawSelf')==false then return false end
  -- Clear/result events may own actor updates. Change display only here;
@@ -93,14 +115,18 @@ keyModule.install(S)
 S.config,S.configWarning=keyModule.load_config()
 -- Disabled controller switching needs no pad or manager hooks.
 if S.config.controllerCombo then dofile('reframework/data/dmc5_switch_controller.lua')end
-local function is_down(key)return reframework:is_key_down(key)end
+local function is_down(key)return keyModule.read_key(key)end
 local function advance(manager)
  local c=runtime.get(manager)
  S.current=c.id
- if runtime.storyReload then request=nil;S.stage='checkpoint reload in progress';return end
- if not runtime.permits(manager)then request=nil;S.stage='outside party scene';return end
- if not core.names[S.current]then request=nil;return end
- if not request then return end
+ if history and(history.manager~=manager or history.generation~=loader.generation or history.current~=c.id)then clearHistory()end
+ if runtime.storyReload then clearHistory();request=nil;S.stage='checkpoint reload in progress';return end
+ if not runtime.permits(manager)then clearHistory();request=nil;S.stage='outside party scene';return end
+ if not core.names[S.current]then clearHistory();request=nil;return end
+ if not request then
+  S.stage=loader.playable and('active '..core.names[S.current])or 'waiting for gameplay'
+  return
+ end
  local r=request
  if r.source=='palace'then
   local palace=_G.dmc5_switch_palace
@@ -116,7 +142,12 @@ local function advance(manager)
  if loader.ready(manager,r.id)then
   core.switch(manager,r.id,r.source)
   loader.selected(manager,r.id)
+  if r.id~=c.id then
+   history={id=c.id,current=r.id,manager=manager,generation=loader.generation}
+   S.previousCharacter=c.id
+  end
   S.current=r.id
+  S.switchCount=(S.switchCount or 0)+1
   request=nil;S.stage='active '..core.names[S.current]
   return
  end
@@ -125,6 +156,8 @@ end
 local function update(manager)
  loader.update(manager,core,request and request.id)
  S.available=loader.available
+ S.storyVGuards=core.storyVGuards
+ S.presentationError=core.presentationError
  advance(manager)
 end
 sdk.hook(sdk.find_type_definition('app.PlayerManager'):get_method('doUpdate'),function(args)
@@ -134,6 +167,7 @@ end,function(ret)return ret end)
 re.on_frame(function()
  local ok,why=pcall(runtime.maintainStoryReload)
  if not ok then runtime.storyRetryError=tostring(why)end
+ S.keyboardSource=keyModule.input.source;S.keyboardError=keyModule.input.error
  keyModule.poll(S,keys,S.config,is_down)
 end)
 return S

@@ -99,12 +99,25 @@ function actor(id,form,active,air)
  local clone={get_field=function(_,name)assert(name=='_DoppelValid');return p.clone end}
  function p:call(name,a,b,c,d)
   if name=='get_playerID'then return self.id
+  elseif name=='get_isLockOn'then return lockHeld or false
+  elseif name=='get_lockOnTarget'then
+   self.lockObject=self.lockObject or {call=function(o,n,v)
+    if n=='get_isValid'then return o.work~=nil end
+    if n=='get_target'then return o.work end
+    if n=='set_target'then o.work=v;return end
+    assert(n=='set_isActive');o.active=v
+   end}
+   return self.lockObject
+  elseif name=='set_isManualLockOn'then self.manualLock=a
+  elseif name=='lockOnTargetCheck'then return a.allowed~=false
+  elseif name=='get_ownerVergilPL'then return self.ownerVergil
   elseif name=='get_padInput'then return self.padInput
   elseif name=='get_Enable'then return self.enabled
   elseif name=='resetGunShotReserve'or name=='finishBRChargeEffect'then
   -- Playable Vergil reports ordinary DT while Doppel Mode is enabled even
   -- when his own model is human. Human-form transition does not dismiss it.
   elseif name=='get_isDevilTrigger'then return self.form==1 or (self.id==4 and self.doppel)
+  elseif name=='get_isSummonGilver'then return false
   elseif name=='get_isTheDevilTrigger'then assert(id==1 or id==4);return self.form==2
   elseif name=='set_devilTriggerBtnOnTimer'then assert(a==0);self.button=a
   elseif name=='set_devilTriggerPressTimer'then assert(a==0);self.press=a
@@ -124,6 +137,7 @@ function actor(id,form,active,air)
   elseif name=='get_cachedCharacterController'then return world
   elseif name=='get_cachedSubCharacterController'then return sub
   elseif name=='get_cachedActivateMediator'then return med
+  elseif name=='set_networkWwiseType'then self.wwiseType=a
   elseif name=='set_MediationType' or name=='subNetworkSubType' or name=='updateNetworkCheckType' or name=='resetPadInput'then
   elseif name=='get_GameObject'then return object
   elseif name=='get_camera'then return camera
@@ -216,6 +230,7 @@ for previous in forms:
                     lua.globals().finishNative(True)
                     lua.execute('''
 assert(active==new and old.form==0 and new.form==0)
+assert(new.wwiseType==1,'selected actor retained PuppetPlayer sound profile')
 if active.id==0 then assert(active.blueRose.input==active.padInput,'charge bound before native profile refresh')end
 assert(old.paused and not old.enabled and not old.visible)
 assert(not new.paused and new.enabled and new.visible)
@@ -409,3 +424,50 @@ core.switch(manager,1);nativeV=true;finishNative(true)
 assert(new.position.x==200,'old deferred placement escaped into a native V scene')
 nativeV=nil
 ''')
+
+# Keep the same enemy/joint work across all six human handoffs, without
+# sharing a mutable LockOnObject or retaining the target after button release.
+lua.execute('''
+function enemyWork()
+ return {valid=true,enabled=true,dying=false,call=function(self,n)
+  if n=='get_isValid'then return self.valid end
+  if n=='get_isLockOnEnable'then return self.enabled end
+  assert(n=='get_isDying');return self.dying
+ end}
+end
+for _,from in ipairs({0,1,4})do for _,to in ipairs({0,1,4})do if from~=to then
+ scenario(from,to,0,0,false,-1);lockHeld=true
+ local work=enemyWork();local original=old:call('get_lockOnTarget')
+ original:call('set_target',work)
+ core.switch(manager,to)
+ assert(new.lockObject~=original and new.lockObject.work==work and new.manualLock)
+ -- Simulate native initialization choosing another nearby enemy.
+ new.lockObject.work=enemyWork();finishNative(false)
+ assert(new.lockObject.work==work,'late native initialization lost locked enemy')
+ local other=enemyWork();new.lockObject.work=other;finishNative(false)
+ assert(new.lockObject.work==other,'ordinary target change was pinned')
+ assert(original.work==work,'old actor wrapper was modified')
+end end end
+for _,reason in ipairs({'release','dead','invalid','disabled','rejected'})do
+ scenario(0,1,0,0,false,-1);lockHeld=true
+ local work=enemyWork();old:call('get_lockOnTarget'):call('set_target',work)
+ core.switch(manager,1)
+ local other=enemyWork();new.lockObject.work=other
+ if reason=='release'then lockHeld=false
+ elseif reason=='dead'then work.dying=true
+ elseif reason=='invalid'then work.valid=false
+ elseif reason=='disabled'then work.enabled=false
+ else work.allowed=false end
+ finishNative(false)
+ assert(new.lockObject.work==other,'invalid/released lock was restored: '..reason)
+end
+scenario(0,1,0,0,false,-1);lockHeld=false
+old:call('get_lockOnTarget'):call('set_target',enemyWork())
+core.switch(manager,1);finishNative(false)
+assert(new.lockObject==nil,'auto-target copied without lock input')
+scenario(0,1,0,0,false,-1);lockHeld=true
+core.switch(manager,1);finishNative(false)
+assert(new.lockObject==nil,'empty lock created a target')
+lockHeld=false
+''')
+print('PASS: six real handoffs preserve exact enemy/joint work in separate wrappers; deferred native overwrite, later target changes, release, death, invalid/disabled/rejected targets and empty lock covered.')

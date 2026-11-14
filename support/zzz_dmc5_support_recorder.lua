@@ -1,3 +1,4 @@
+local keyboard=dofile('reframework/data/dmc5_switch_keys.lua')
 -- Optional support recorder. Reads state only; no gameplay setters or hooks.
 if _G.dmc5_support_recorder then return end
 local D={version='support-50.1',samples=0,writes=0,buffer={}}
@@ -87,6 +88,15 @@ local function actor(p,manual)
   running=call(p,'get_isEventRun'),scriptedMove=call(p,'get_isEventMove'),
   action=text(call(p,'get_nowActionNameFull')),mediation=call(p,'get_MediationType'),
   masterLockRestricted=call(p,'get_isMasterLockOnRestricted'),input=address(input)}
+ row.networkWwiseType=call(p,'get_networkWwiseType')
+ row.wwiseNetworkMode=call(p,'get_WwiseNetworkModeValue')
+ row.thinkEnable=call(p,'get_isThinkEnable')
+ local tree=call(p,'get_cachedBehaviorTree')
+ row.treeEnabled=call(tree,'get_Enabled');row.treePaused=call(tree,'get_Paused')
+ local lock=call(p,'get_lockOnTarget')
+ row.lockHeld=call(p,'get_isLockOn');row.manualLock=call(p,'get_isManualLockOn')
+ row.lockObject=address(lock);row.lockTargetWork=address(call(lock,'get_target'))
+ if id==2 then row.ownerVergil=address(call(p,'get_ownerVergilPL'))end
  if pos then pcall(function()row.position={x=pos.x,y=pos.y,z=pos.z}end)end
  -- Only game action masks, never keyboard text or system-wide key history.
  row.inputOn=call(input,'get_buttonOnFlags')
@@ -109,18 +119,29 @@ local function capture(now,kind)
  local S=_G.dmc5_live_switch or {};local B=_G.dmc5_switch_loader or {}
  local R=_G.dmc5_switch_runtime or {};local P=_G.dmc5_switch_palace or {};local C=_G.dmc5_switch_controller or {}
  local H=_G.dmc5_party_hud or {};local gm=singleton('app.GameManager')
+ local V=_G.dmc5_switch_resources or {}
+ local progression=_G.dmc5_switch_progression or {}
  local manager=B.manager or R.manager or singleton('app.PlayerManager')
  local manual=call(manager,'get_manualPlayer');local bp=singleton('app.BloodyPalaceManager')
  local setting=call(singleton('app.MissionSettingManager'),'get_Setting')
- local row={schema=1,utc=now,session=session,kind=kind,recorder=D.version,build=text(S.build),
+ local row={schema=1,utc=now,session=session,kind=kind,recorder=D.version,build=text(S.build),revision=text(S.revision),
   mission=call(gm,'get_missionNo'),mode=call(gm,'get_gameMode'),paused=call(gm,'get_isPause'),recorderError=D.error,
   menuPaused=call(gm,'get_isPauseMenu'),nativePlayer=call(setting,'get_ControllPlayerID'),
   manual=call(manual,'get_playerID'),modCurrent=S.current,modStage=text(S.stage),error=text(S.error),
+  danteCharge={roundTripRepairs=progression.danteRoundTripRepairs,roundTripError=text(progression.danteRoundTripWarning),
+   sheathRepairs=progression.danteSheathRepairs,sheathError=text(progression.danteSheathWarning)},
+  worldVCamera={resetHook=V.worldVResetHook,resetRepairs=V.worldVResetRepairs,resetError=V.worldVResetError,
+   childRestoreHook=V.worldVChildRestoreHook,childRestores=V.worldVChildRestores,childError=V.worldVChildError,
+   reserveRepairs=V.worldVReserveRepairs,actionHook=V.worldVActionHooked,actionPrepares=V.worldVActionPrepares,actionError=V.worldVActionError,
+   lookupHook=V.worldVCameraHooked,guardHook=V.worldVCameraGuardHooked,lateHook=V.worldVCameraLateHooked,
+   selections=V.worldVCameraSelections,repairs=V.worldVCameraRepairs,treeRepairs=V.worldVTreeRepairs,error=text(V.worldVCameraError)},
+  switching={keyPresses=S.keyPressCount,lastDirection=S.lastKeyDirection,requests=S.requestCount,
+   lastRequest=copy(S.lastRequest),completed=S.switchCount,previousCharacter=S.previousCharacter,vInputGuards=S.storyVGuards},
   loader={stage=text(B.stage),error=text(B.error),generation=B.generation,available=copy(B.available),
    task=B.task and {id=B.task.id,phase=B.task.phase},playable=B.playable},
   control={selected=R.controlSelection and R.controlSelection.id,native=R.nativeControl and R.nativeControl.id,
    error=text(R.controlIdentityError),retry=R.storyRetrySerial,lookup=call(gm,'findManualPlayerID'),playing=field(gm,'PlayingID'),
-   retryError=text(R.storyRetryError),reload=R.storyReload and copy(R.storyReload)},
+   retryError=text(R.storyRetryError),runtimeError=text(R.error),reload=R.storyReload and copy(R.storyReload),tail=R.storyReloadTail and copy(R.storyReloadTail),tailRepairs=R.storyTailRepairs,reserveIdentityRepairs=R.reserveIdentityRepairs},
   controller={source=C.inputSource,mask=C.lastMask,pending=C.pending,error=text(C.error)},
   palace={floor=field(bp,'CurrentStageNo'),supply=field(bp,'IsGauntletStage'),
    restores=P.restores,error=text(P.error)},hud={active=H.active,error=text(H.error),stage=text(H.stage)},players={}}
@@ -131,8 +152,8 @@ local function capture(now,kind)
    if p then
     local id=call(p,'get_playerID');local ready=false
     if B.manager==manager and B.ready and call(manager,'getPlayerByID',id)==p then local ok,v=pcall(B.ready,manager,id);ready=ok and v==true end
-    if ready then
-     local ok,v=pcall(actor,p,manual);if ok then v.ready=true;row.players[#row.players+1]=v else row.actorError=text(v)end
+    if ready or id==2 then
+     local ok,v=pcall(actor,p,manual);if ok then v.ready=ready;row.players[#row.players+1]=v else row.actorError=text(v)end
     else row.players[#row.players+1]={id=id,type=typeName(p),address=address(p),manual=p==manual,ready=false}end
    end
   end
@@ -177,13 +198,14 @@ re.on_frame(function()
   if #changes<20 then changes[#changes+1]={utc=now,frame=frames,current=S.current,stage=text(S.stage),error=text(S.error),generation=B.generation}end
   lastSignature=signature
  end
- local down=reframework:is_key_down(119)
+ local down=keyboard.read_key(121)
  local mark=down and not keyWasDown and now-lastMark>=3;keyWasDown=down
  if now==last and not mark then return end
  if mark then lastMark=now end
  local ok,why=pcall(function()
   if #D.buffer>0 and math.floor(D.buffer[1].utc/60)~=math.floor(now/60)then flush()end
-  local row=capture(now,mark and 'F8' or 'sample')
+  local row=capture(now,mark and 'F10' or 'sample')
+  row.keyboard={source=keyboard.input.source,error=keyboard.input.error}
   row.changes=changes;changes={}
   row.frameCallbacks=frames;row.wallSeconds=last and now-last or 0;frames=0
   D.buffer[#D.buffer+1]=row;D.samples=D.samples+1;last=now

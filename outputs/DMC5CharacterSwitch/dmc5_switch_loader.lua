@@ -110,6 +110,7 @@ local function inspect(loader,r,actor)
 end
 local function step(manager,loader,core)
  local r=B.task
+ runtime.guardReserveIdentity(manager)
  local actor=manager:call('getPlayerByID',r.id)
  if B.clock-r.start>60 then error('Character preparation timed out: '..r.id)end
  if actor and actor==manager:call('get_manualPlayer')then
@@ -131,7 +132,13 @@ local function step(manager,loader,core)
    r.owner=manager:call('get_manualPlayer')
    r.ownerID=r.owner and r.owner:call('get_playerID')
    r.loadTries=(r.loadTries or 0)+1
-   loader:call('requestLoadPlayerResource',r.id,0,0,false)
+   -- Read the native choice for this character, not the currently controlled
+   -- hero. Keep it for retries of this request; new scenes read it again.
+   if r.costume==nil then
+    r.costume=manager:call('getCostumeID',r.id)
+    assert(type(r.costume)=='number'and r.costume>=0 and r.costume%1==0,'Native costume selection unavailable: '..r.id)
+   end
+   loader:call('requestLoadPlayerResource',r.id,r.costume,0,false)
    -- The native void request can refuse without throwing (for example,
    -- before PlayerLoadManager is available). State 2 is only preloaded.
    local state=recordState(loader,r.id)
@@ -163,6 +170,7 @@ local function step(manager,loader,core)
  end
 end
 function B.update(manager,core,requested)
+ if core.guardStoryV then core.guardStoryV(manager)end
  if runtime.storyReload then
   if B.storyRetrySerial~=runtime.storyRetrySerial then
    B.reset(manager);B.storyRetrySerial=runtime.storyRetrySerial
@@ -201,6 +209,7 @@ function B.update(manager,core,requested)
  -- incoming mission's native control handoff.
  if B.manager~=manager or B.sceneMode~=mode or B.storyMission~=mission or B.storyRetrySerial~=retrySerial then resetScene()end
  local loading=B.task
+ if loading then runtime.guardReserveIdentity(manager)end
  if B.manager==manager and loading and loading.owner and
   manager:call('getPlayerByID',loading.ownerID)==loading.owner then
   local active=manager:call('get_manualPlayer')
@@ -280,6 +289,8 @@ function B.update(manager,core,requested)
  -- Cache identity AND inspect current state: floor cleanup may show the
  -- same V again. Settled actors are read, never repeatedly paused/hidden.
  local extra=manager:call('getPlayerByID',2)
+ -- A World of V summon is a native skill actor, never an excluded reserve.
+ if extra and extra:call('get_ownerVergilPL')then extra=nil end
  local changed=extra~=B.excludedV
  if extra and not changed then
   local med=extra:call('get_cachedActivateMediator')

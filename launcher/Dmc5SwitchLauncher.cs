@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -75,12 +75,24 @@ namespace Dmc5SwitchLauncher
     {
         public int Next = 128;
         public int Previous = 129;
+        public int Nero = 118, Dante = 119, Vergil = 120;
         public bool ControllerCombo = true;
+        public string PadPrevious = "LB", PadNext = "RB", PadNero = "None", PadDante = "None", PadVergil = "None";
+        public static readonly string[] PadChoices = { "None", "A", "B", "X", "Y", "LB", "LT", "RB", "RT" };
         public void Validate()
         {
             if (!KeyCatalog.Valid(Next) || !KeyCatalog.Valid(Previous))
                 throw new InvalidDataException("请选择有效的单个键。Insert 留给 REFramework 面板使用。");
-            if (Next == Previous) throw new InvalidDataException("下一位和上一位不能使用同一个键。");
+            var padUsed = new HashSet<string>();
+            foreach (string button in new[] { PadPrevious, PadNext, PadNero, PadDante, PadVergil }) {
+                if (Array.IndexOf(PadChoices, button) < 0 || (button != "None" && !padUsed.Add(button)))
+                    throw new InvalidDataException("手柄副键请选择 A/B/X/Y/LB/LT/RB/RT，且不能重复；可选择停用。");
+            }
+            var used = new HashSet<int>();
+            foreach (int key in new[] { Next, Previous, Nero, Dante, Vergil }) {
+                if (key == 0) continue;
+                if (!KeyCatalog.Valid(key) || !used.Add(key)) throw new InvalidDataException("切人按键必须有效且互不重复；指定角色按键可选择停用。");
+            }
         }
     }
 
@@ -107,12 +119,30 @@ namespace Dmc5SwitchLauncher
                 var data = Json.Deserialize<Dictionary<string, object>>(File.ReadAllText(path, Encoding.UTF8));
                 if (data == null || Number(data, "version", 1) != 1) throw new InvalidDataException("配置版本不支持。");
                 var result = new Bindings { Next = Number(data, "nextKey", 128), Previous = Number(data, "previousKey", 129) };
+                var used = new HashSet<int> { result.Next, result.Previous };
+                string[] names = { "neroKey", "danteKey", "vergilKey" };
+                int[] direct = { 118, 119, 120 };
+                for (int i = 0; i < names.Length; i++) {
+                    direct[i] = Number(data, names[i], used.Contains(direct[i]) ? 0 : direct[i]);
+                    if (direct[i] != 0) used.Add(direct[i]);
+                }
+                result.Nero = direct[0]; result.Dante = direct[1]; result.Vergil = direct[2];
                 object combo;
                 if (data.TryGetValue("controllerCombo", out combo))
                 {
                     if (!(combo is bool)) throw new InvalidDataException("手柄开关格式无效。");
                     result.ControllerCombo = (bool)combo;
                 }
+                string[] padNames = { "padPrevious", "padNext", "padNero", "padDante", "padVergil" };
+                string[] padValues = { "LB", "RB", "None", "None", "None" };
+                for (int i = 0; i < padNames.Length; i++) {
+                    object button;
+                    if (data.TryGetValue(padNames[i], out button)) {
+                        if (!(button is string)) throw new InvalidDataException("手柄副键格式无效。");
+                        padValues[i] = (string)button;
+                    }
+                }
+                result.PadPrevious = padValues[0]; result.PadNext = padValues[1]; result.PadNero = padValues[2]; result.PadDante = padValues[3]; result.PadVergil = padValues[4];
                 result.Validate();
                 return result;
             }
@@ -146,6 +176,9 @@ namespace Dmc5SwitchLauncher
             }
             data["version"] = 1; data["nextKey"] = bindings.Next;
             data["previousKey"] = bindings.Previous; data["controllerCombo"] = bindings.ControllerCombo;
+            data["neroKey"] = bindings.Nero; data["danteKey"] = bindings.Dante; data["vergilKey"] = bindings.Vergil;
+            data["padPrevious"] = bindings.PadPrevious; data["padNext"] = bindings.PadNext;
+            data["padNero"] = bindings.PadNero; data["padDante"] = bindings.PadDante; data["padVergil"] = bindings.PadVergil;
             AtomicWrite(path, Json.Serialize(data));
         }
     }
@@ -229,7 +262,10 @@ namespace Dmc5SwitchLauncher
         static readonly Color Accent = Color.FromArgb(92, 203, 246);
         TextBox gamePath;
         ComboBox next, previous;
+        ComboBox[] direct = new ComboBox[3];
+        Button[] captureDirect = new Button[3];
         CheckBox controller;
+        ComboBox[] padButtons = new ComboBox[5];
         Label status;
         Button save, launch, captureNext, capturePrevious;
         int capturing;
@@ -245,13 +281,13 @@ namespace Dmc5SwitchLauncher
             Text = "鬼泣5 切人启动器 · pre-0.0.4";
 #endif
             AutoScaleMode = AutoScaleMode.None;
-            ClientSize = new Size(860, 692);
+            ClientSize = new Size(860, 904);
             FormBorderStyle = FormBorderStyle.FixedSingle; MaximizeBox = false;
             StartPosition = FormStartPosition.Manual;
             BackColor = Background; ForeColor = Color.White;
             Font = new Font("Microsoft YaHei UI", 10F); KeyPreview = true;
             AddLabel(this, "鬼泣 5  /  切人启动器", 28, 22, 800, 38, 22F, Color.White);
-            AddLabel(this, "启动前设置双向切换按键，设置会自动保留。", 30, 68, 800, 26, 10F, Muted);
+            AddLabel(this, "设置循环切人及指定角色按键，设置会自动保留。", 30, 68, 800, 26, 10F, Muted);
 
             Panel pathCard = PanelAt(28, 110, 804, 104);
             AddLabel(pathCard, "游戏目录", 18, 10, 650, 26, 11F, Color.White);
@@ -273,26 +309,46 @@ namespace Dmc5SwitchLauncher
             capturePrevious.Click += delegate { BeginCapture(-1); };
             AddLabel(forward, "尼禄 → 但丁 → 维吉尔", 18, 106, 355, 25, 9F, Muted);
             AddLabel(backward, "沿相反方向循环切换", 18, 106, 355, 25, 9F, Muted);
-            controller = new CheckBox { Text = "启用手柄切人：先按住挑衅，再按 LB 上一位 / RB 下一位", Location = new Point(30, 394), Size = new Size(800, 30), Checked = true, AccessibleName = "启用手柄切人" };
+            string[] characters = { "尼禄", "但丁", "维吉尔" };
+            for (int i = 0; i < 3; i++) {
+                int index = i;
+                Panel card = PanelAt(28 + i * 274, 390, 256, 120);
+                AddLabel(card, "切到" + characters[i], 14, 8, 226, 26, 12F, Accent);
+                direct[i] = MakeCombo(card, "切到" + characters[i] + "按键");
+                direct[i].Location = new Point(14, 44); direct[i].Size = new Size(126, 36);
+                direct[i].Items.Insert(0, new KeyChoice(0, "停用"));
+                captureDirect[i] = MakeButton(card, "按键录入", 146, 44, 96, 36, false);
+                captureDirect[i].Click += delegate { BeginCapture(index + 2); };
+                direct[i].SelectedIndexChanged += delegate { if (initialized) ValidateChoices(); };
+            }
+            controller = new CheckBox { Text = "启用手柄切人：先按住游戏内配置的挑衅键，再按下方副键", Location = new Point(30, 530), Size = new Size(800, 30), Checked = true, AccessibleName = "启用手柄切人" };
             Controls.Add(controller);
-            AddLabel(this, "背键映射为键盘键时，请与这里的设置保持一致。支持单键与 F1–F24。", 30, 432, 800, 27, 9F, Muted);
-            Button install = MakeButton(this, "安装 / 更新 Mod", 28, 478, 192, 42, false);
-            Button uninstall = MakeButton(this, "卸载 Mod", 234, 478, 152, 42, false);
+            string[] padLabels = { "上一位", "下一位", "切到尼禄", "切到但丁", "切到维吉尔" };
+            for (int i = 0; i < padButtons.Length; i++) {
+                AddLabel(this, padLabels[i], 30 + i * 162, 568, 152, 26, 10F, Muted);
+                var combo = new ComboBox { Location = new Point(30 + i * 162, 598), Size = new Size(152, 32), DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "手柄切到" + padLabels[i] };
+                foreach (string button in Bindings.PadChoices) combo.Items.Add(button == "None" ? "停用" : button);
+                padButtons[i] = combo; Controls.Add(combo);
+                combo.SelectedIndexChanged += delegate { if (initialized) ValidateChoices(); };
+            }
+            AddLabel(this, "副键支持 A/B/X/Y/LB/LT/RB/RT；多个切人副键同时按下不切换。", 30, 644, 800, 27, 9F, Muted);
+            Button install = MakeButton(this, "安装 / 更新 Mod", 28, 690, 192, 42, false);
+            Button uninstall = MakeButton(this, "卸载 Mod", 234, 690, 152, 42, false);
             install.Click += delegate { ManageMod(true); };
             uninstall.Click += delegate { ManageMod(false); };
-            AddLabel(this, "完整安装脚本及加载器，原文件先备份。\n请先退出游戏再安装；保留按键设置。", 408, 476, 420, 48, 9F, Muted);
-            status = AddLabel(this, "", 30, 540, 798, 72, 10F, Muted);
+            AddLabel(this, "包含切人脚本及音效修复，原文件先备份。\n请先退出游戏再安装；保留按键设置。", 408, 688, 420, 48, 9F, Muted);
+            status = AddLabel(this, "", 30, 752, 798, 72, 10F, Muted);
 #if SUPPORT_DIAGNOSTICS
             install.Text = "安装 / 更新诊断版";
             foreach (Control item in Controls) {
                 var label = item as Label;
                 if (label != null && label.Top == 22) { label.Text = "鬼泣 5  /  远端诊断"; label.Font = new Font("Microsoft YaHei UI", 17F); }
-                if (label != null && label.Top == 68) label.Text = "安装诊断版后重启游戏；故障时 F8 标记，再导出桌面 ZIP。";
+                if (label != null && label.Top == 68) label.Text = "安装诊断版后重启游戏；故障时 F10 标记，再导出桌面 ZIP。";
             }
-            status.Location = new Point(30, 578); status.Size = new Size(798, 42);
-            var export = MakeButton(this, "导出最近30分钟 ZIP", 28, 532, 300, 36, true);
-            var stop = MakeButton(this, "停止诊断记录", 342, 532, 192, 36, false);
-            AddLabel(this, "F8：标记现场并立即保存", 552, 539, 280, 27, 9F, Muted);
+            status.Location = new Point(30, 790); status.Size = new Size(798, 42);
+            var export = MakeButton(this, "导出最近30分钟 ZIP", 28, 744, 300, 36, true);
+            var stop = MakeButton(this, "停止诊断记录", 342, 744, 192, 36, false);
+            AddLabel(this, "F10：标记现场并立即保存", 552, 751, 280, 27, 9F, Muted);
             export.Click += delegate {
                 try { SupportUi.Export(this, Game.Root(gamePath.Text), Message); }
                 catch (Exception ex) { Message("未完成：" + ex.Message, true); }
@@ -302,10 +358,10 @@ namespace Dmc5SwitchLauncher
                 catch (Exception ex) { Message("未完成：" + ex.Message, true); }
             };
 #endif
-            Button defaults = MakeButton(this, "恢复 F17 / F18", 28, 628, 174, 42, false);
-            defaults.Click += delegate { EndCapture(); SelectKey(next, 128); SelectKey(previous, 129); controller.Checked = true; ValidateChoices(); };
-            save = MakeButton(this, "仅保存设置", 474, 628, 150, 42, false);
-            launch = MakeButton(this, "保存并启动游戏", 640, 628, 192, 42, true);
+            Button defaults = MakeButton(this, "恢复默认按键", 28, 840, 174, 42, false);
+            defaults.Click += delegate { EndCapture(); SelectKey(next, 128); SelectKey(previous, 129); for (int i = 0; i < 3; i++) SelectKey(direct[i], 118 + i); for (int i = 0; i < 5; i++) padButtons[i].SelectedIndex = i == 0 ? 5 : i == 1 ? 7 : 0; controller.Checked = true; ValidateChoices(); };
+            save = MakeButton(this, "仅保存设置", 474, 840, 150, 42, false);
+            launch = MakeButton(this, "保存并启动游戏", 640, 840, 192, 42, true);
             save.Click += delegate { Save(false); }; launch.Click += delegate { Save(true); };
             next.SelectedIndexChanged += delegate { if (initialized) ValidateChoices(); };
             previous.SelectedIndexChanged += delegate { if (initialized) ValidateChoices(); };
@@ -351,9 +407,11 @@ namespace Dmc5SwitchLauncher
         Bindings ReadChoices()
         {
             if (next.SelectedItem == null || previous.SelectedItem == null) throw new InvalidDataException("请选择两个切换按键。");
-            var value = new Bindings { Next = ((KeyChoice)next.SelectedItem).Code, Previous = ((KeyChoice)previous.SelectedItem).Code, ControllerCombo = controller.Checked };
+            var value = new Bindings { Next = ((KeyChoice)next.SelectedItem).Code, Previous = ((KeyChoice)previous.SelectedItem).Code, Nero = ((KeyChoice)direct[0].SelectedItem).Code, Dante = ((KeyChoice)direct[1].SelectedItem).Code, Vergil = ((KeyChoice)direct[2].SelectedItem).Code, ControllerCombo = controller.Checked };
+            value.PadPrevious = PadValue(0); value.PadNext = PadValue(1); value.PadNero = PadValue(2); value.PadDante = PadValue(3); value.PadVergil = PadValue(4);
             value.Validate(); return value;
         }
+        string PadValue(int index) { return padButtons[index].SelectedIndex <= 0 ? "None" : (string)padButtons[index].SelectedItem; }
         void Message(string text, bool error)
         {
             status.Text = text; status.ForeColor = error ? Color.FromArgb(255, 167, 158) : Muted;
@@ -375,7 +433,9 @@ namespace Dmc5SwitchLauncher
             Bindings value = new Bindings();
             try { value = ConfigStore.Load(ConfigStore.ConfigPath(Game.Root(gamePath.Text)), out warning); }
             catch (Exception ex) { warning = ex.Message; }
-            SelectKey(next, value.Next); SelectKey(previous, value.Previous); controller.Checked = value.ControllerCombo;
+            SelectKey(next, value.Next); SelectKey(previous, value.Previous); SelectKey(direct[0], value.Nero); SelectKey(direct[1], value.Dante); SelectKey(direct[2], value.Vergil); controller.Checked = value.ControllerCombo;
+            string[] buttons = { value.PadPrevious, value.PadNext, value.PadNero, value.PadDante, value.PadVergil };
+            for (int i = 0; i < 5; i++) padButtons[i].SelectedIndex = Array.IndexOf(Bindings.PadChoices, buttons[i]);
             initialized = true; ValidateChoices();
             if (warning != null) Message(warning, true);
         }
@@ -393,11 +453,13 @@ namespace Dmc5SwitchLauncher
             capturing = direction; save.Enabled = launch.Enabled = false;
             captureNext.Text = direction == 1 ? "等待按键…" : "按键录入";
             capturePrevious.Text = direction == -1 ? "等待按键…" : "按键录入";
+            for (int i = 0; i < 3; i++) captureDirect[i].Text = direction == i + 2 ? "等待按键…" : "按键录入";
             Message("请按一个键；Esc 取消。F13–F24 也可直接从下拉列表选择。", false);
         }
         void EndCapture()
         {
             capturing = 0;
+            foreach (Button button in captureDirect) if (button != null) button.Text = "按键录入";
             if (captureNext != null) captureNext.Text = "按键录入";
             if (capturePrevious != null) capturePrevious.Text = "按键录入";
         }
@@ -407,7 +469,7 @@ namespace Dmc5SwitchLauncher
             if (code == (int)Keys.Escape) { EndCapture(); ValidateChoices(); return true; }
             if ((keyData & Keys.Modifiers) != Keys.None || !KeyCatalog.Valid(code))
             { Message("请选择单个键，或从列表选择。Ctrl / Shift / Alt 组合键不作为切人键。", true); return true; }
-            ComboBox target = capturing == 1 ? next : previous;
+            ComboBox target = capturing == 1 ? next : capturing == -1 ? previous : direct[capturing - 2];
             EndCapture(); SelectKey(target, code); ValidateChoices(); return true;
         }
         protected override bool ProcessCmdKey(ref System.Windows.Forms.Message msg, Keys keyData)
@@ -420,6 +482,7 @@ namespace Dmc5SwitchLauncher
             if (capturing != 0) { CaptureKey(e.KeyData); e.Handled = true; e.SuppressKeyPress = true; return; }
             base.OnKeyDown(e);
         }
+        static string DirectName(int code) { return code == 0 ? "停用" : KeyCatalog.Name(code); }
         void Save(bool start)
         {
             try
@@ -431,12 +494,12 @@ namespace Dmc5SwitchLauncher
                 ConfigStore.Save(ConfigStore.ConfigPath(root), value);
                 string remembered = "";
                 try { Game.Remember(root); } catch { remembered = "（游戏目录未能记住）"; }
-                if (!start) { Message("已保存：下一位 " + KeyCatalog.Name(value.Next) + " / 上一位 " + KeyCatalog.Name(value.Previous) + "。下次启动生效。" + remembered, false); return; }
+                if (!start) { Message("已保存：下一位 " + KeyCatalog.Name(value.Next) + " / 上一位 " + KeyCatalog.Name(value.Previous) + " / 尼禄 " + DirectName(value.Nero) + " / 但丁 " + DirectName(value.Dante) + " / 维吉尔 " + DirectName(value.Vergil) + "。下次启动生效。" + remembered, false); return; }
                 if (Game.Running()) { Message("设置已保存。游戏正在运行，请退出游戏后再从这里启动。", false); return; }
 #if SUPPORT_DIAGNOSTICS
                 if (!File.Exists(SupportRecorder.PathIn(root))) throw new IOException("请先退出游戏并点击“安装 / 更新诊断版”，再启动记录。");
                 Process.Start(Game.StartInfo(root));
-                Message("游戏已启动。可保留此窗口；故障时按F8，随后导出最近30分钟ZIP。", false);
+                Message("游戏已启动。可保留此窗口；故障时按F10，随后导出最近30分钟ZIP。", false);
 #else
                 Process.Start(Game.StartInfo(root)); Close();
 #endif
@@ -495,10 +558,22 @@ namespace Dmc5SwitchLauncher
                 string path = ConfigStore.ConfigPath(root), warning;
                 var defaults = ConfigStore.Load(path, out warning);
                 Check(defaults.Next == 128 && defaults.Previous == 129 && defaults.ControllerCombo && warning == null, "defaults");
-                var custom = new Bindings { Next = 118, Previous = 119, ControllerCombo = false };
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, "{\"nextKey\":118,\"previousKey\":119}");
+                var legacy = ConfigStore.Load(path, out warning);
+                Check(legacy.Next == 118 && legacy.Previous == 119 && legacy.Nero == 0 && legacy.Dante == 0 && legacy.Vergil == 120 && warning == null, "legacy key collision migration");
+                bool directRejected = false;
+                try { new Bindings { Nero = 128 }.Validate(); } catch (InvalidDataException) { directRejected = true; }
+                Check(directRejected, "direct/cycle duplicate rejection");
+                bool padRejected = false;
+                try { new Bindings { PadNero = "LB" }.Validate(); } catch (InvalidDataException) { padRejected = true; }
+                Check(padRejected, "controller duplicate rejection");
+                File.WriteAllText(path, "{\"padNext\":\"bad\"}");
+                Check(ConfigStore.Load(path, out warning).PadNext == "RB" && warning != null, "invalid controller fallback");
+                var custom = new Bindings { Next = 118, Previous = 119, Nero = 122, Dante = 123, Vergil = 0, PadPrevious = "LT", PadNext = "RT", PadNero = "A", PadDante = "B", PadVergil = "Y", ControllerCombo = false };
                 ConfigStore.Save(path, custom);
                 var read = ConfigStore.Load(path, out warning);
-                Check(read.Next == 118 && read.Previous == 119 && !read.ControllerCombo && warning == null, "round trip");
+                Check(read.Next == 118 && read.Previous == 119 && !read.ControllerCombo && read.Nero == 122 && read.Dante == 123 && read.Vergil == 0 && read.PadPrevious == "LT" && read.PadNext == "RT" && read.PadNero == "A" && read.PadDante == "B" && read.PadVergil == "Y" && warning == null, "round trip");
                 ConfigStore.Save(path, new Bindings()); ConfigStore.Save(path, custom);
                 Check(File.Exists(path + ".bak"), "atomic backup");
                 bool rejected = false;
