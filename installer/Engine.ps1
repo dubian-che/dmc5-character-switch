@@ -1,5 +1,7 @@
 ﻿param([string]$GamePath,[ValidateSet('Install','Restore','Collect')][string]$Mode='Install',[ValidateSet('zh','en')][string]$Language='zh')
 $script:Language=$Language
+[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
+$OutputEncoding=[Console]::OutputEncoding
 . (Join-Path $PSScriptRoot 'Language.ps1')
 $ErrorActionPreference='Stop'
 if(!$GamePath){
@@ -36,7 +38,7 @@ if(Get-Process DevilMayCry5 -ErrorAction SilentlyContinue){throw (T 'Running')}
 if($Mode -eq 'Restore'){
  $latest=Join-Path $backupBase 'latest.txt'
  if(!(Test-Path -LiteralPath $latest)){throw (T 'NoBackup')}
- $backup=[IO.Path]::GetFullPath((Get-Content -LiteralPath $latest -Raw).Trim())
+ $backup=[IO.Path]::GetFullPath((Get-Content -LiteralPath $latest -Raw -Encoding UTF8).Trim())
  if(!$backup.StartsWith($backupBase+'\',[StringComparison]::OrdinalIgnoreCase)){throw (T 'BackupPath')}
  $receipt=Get-Content -LiteralPath (Join-Path $backup 'receipt.json') -Raw|ConvertFrom-Json
  foreach($f in $receipt){$p=Target $f.path;if(!(Test-Path -LiteralPath $p) -or (Get-FileHash -LiteralPath $p).Hash -ne $f.installedHash){throw (T 'Changed' @($f.path))}}

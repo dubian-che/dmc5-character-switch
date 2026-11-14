@@ -15,13 +15,15 @@ Windows 平台的尼禄、但丁、维吉尔实时切换 Mod，使用 REFramewor
 ### 安装与恢复
 
 1. 从 Release 页面下载 `DMC5-Character-Switch-1.0.0.zip`，完整解压。
-2. 完全退出游戏，运行 `00-Setup.cmd`。
-3. 按 **L** 即时切换中文 / English，无需回车；安装器记住语言选择。
-4. 按 **1** 安装，选择游戏目录中的 `DevilMayCry5.exe`，完成后从 Steam 启动游戏。
+2. 完全退出游戏，运行 `DMC5SwitchLauncher.exe`。
+3. 点击右上角 **中文 / English** 即时切换语言；未保存的快捷键选择保留。
+4. 点击 **安装 / 更新**，选择游戏目录中的 `DevilMayCry5.exe`，完成后从 Steam 启动游戏。
 
-安装器核验游戏程序版本和安装文件，自动备份被覆盖的文件，保留已有切人按键与 3S 设置。版本不匹配时会停止安装。退出游戏后按 **3** 可恢复；安装后文件若被改动，恢复会停止以保留修改。
+安装器核验游戏程序版本和安装文件，自动备份被覆盖的文件，保留已有切人按键与 3S 设置。版本不匹配时会停止安装。退出游戏后点击 **恢复安装前文件** 可恢复；安装后文件若被改动，恢复会停止以保留修改。
 
 **不要使用旧 C# 启动器覆盖本安装包：其内嵌加载器不是本次已验证版本。**
+
+安装、更新、键盘与手柄快捷键配置、诊断导出、恢复和启动游戏均在同一图形界面内。完整解压并保留 EXE 旁的安装文件，不要只复制 EXE。
 
 ### 操作
 
@@ -53,7 +55,7 @@ Windows 平台的尼禄、但丁、维吉尔实时切换 Mod，使用 REFramewor
 
 ### 反馈与诊断
 
-异常时按 **F10**，能暂停则暂停。运行 `00-Setup.cmd`，按 **2** 导出诊断 ZIP 到桌面；闪退后先导出再重启，避免日志被覆盖。
+异常时按 **F10**，能暂停则暂停。运行 `DMC5SwitchLauncher.exe`，点击 **导出诊断 ZIP** 到桌面；闪退后先导出再重启，避免日志被覆盖。
 
 反馈请注明关卡、角色、3S 开启的功能和最后操作。诊断包含日志、按键配置、角色状态和文件哈希，不包含存档或完整内存转储；日志可能含本机路径与用户名，请检查后再分享。工具不会自动上传。
 
@@ -66,10 +68,12 @@ Windows 平台的尼禄、但丁、维吉尔实时切换 Mod，使用 REFramewor
 | `native/` | 声音池修复与独立键盘输入模块 |
 | `patches/test-20261114/` | REFramework、3S 补丁、源码基线和第三方许可证 |
 | `support/` | F10 状态记录器和说明 |
-| `launcher/` | 历史 C# 启动器、安装器及测试 |
+| `launcher/` | 当前 DesktopLauncher 图形界面、共用配置代码、历史启动器及测试 |
 | `scripts/` | 构建、安装和验证脚本 |
 | `work/test_*.py` | 离线回归测试 |
 | `work/checkpoints/`、`work/reframework-window-fix/` | 旧版本夹具与窗口修复测试材料，不用于当前安装 |
+
+当前图形启动器使用 `scripts/Build-DesktopLauncher.ps1` 构建；`Build-DesktopPackage.ps1 -PayloadPackage <已验证包目录> -OutputDirectory <新目录>` 校验并组装完整安装目录。`Test-DesktopLauncher.ps1 -Launcher <EXE路径>` 应在 Windows PowerShell 5.1 下运行，使用隔离目录验证安装、恢复和设置保存。
 
 历史启动器构建需要 Windows、Windows PowerShell 5.1 和 .NET Framework 4.x C# 编译器：
 
@@ -115,13 +119,15 @@ Release assets are maintained separately; mirroring the repository does not uplo
 ### Installation and restoration
 
 1. Download `DMC5-Character-Switch-1.0.0.zip` from the Release page and extract the entire archive.
-2. Exit the game completely and run `00-Setup.cmd`.
-3. Press **L** to switch Chinese / English instantly, without Enter. The installer remembers your choice.
-4. Press **1** to install, select `DevilMayCry5.exe` in your game folder, then launch the game through Steam.
+2. Exit the game completely and run `DMC5SwitchLauncher.exe`.
+3. Click **中文 / English** in the top-right corner to switch languages instantly. Unsaved binding selections are preserved.
+4. Click **Install / Update**, select `DevilMayCry5.exe` in your game folder, then launch the game through Steam.
 
-The installer verifies the game executable and package files, backs up replaced files, and preserves existing character-switch bindings and 3S settings. An unsupported executable stops installation. To restore, exit the game and press **3**. Restoration stops if installed files have subsequently changed, preserving those changes.
+The installer verifies the game executable and package files, backs up replaced files, and preserves existing character-switch bindings and 3S settings. An unsupported executable stops installation. To restore, exit the game and click **Restore previous files**. Restoration stops if installed files have subsequently changed, preserving those changes.
 
 **Do not overwrite this package with the old C# launcher: its embedded loader is not the version verified for this release.**
+
+Installation, updates, keyboard/controller configuration, diagnostics, restoration and game launch share one desktop UI. Keep the full extracted folder; do not copy the EXE alone.
 
 ### Controls
 
@@ -153,7 +159,7 @@ The first-activation summoned-sword fix was verified in game and in F10 records;
 
 ### Feedback and diagnostics
 
-When a problem occurs, press **F10** and pause if possible. Run `00-Setup.cmd` and press **2** to export a diagnostic ZIP to Desktop. After a crash, export before restarting to avoid overwriting logs.
+When a problem occurs, press **F10** and pause if possible. Run `00-Setup.cmd` and click **Export diagnostics** to export a diagnostic ZIP to Desktop. After a crash, export before restarting to avoid overwriting logs.
 
 Include the mission, character, enabled 3S features and last action in your report. Diagnostics contain logs, bindings, character state and file hashes, but no saves or full memory dumps. Logs may contain local paths and usernames; review them before sharing. Nothing is uploaded automatically.
 
@@ -166,10 +172,12 @@ Include the mission, character, enabled 3S features and last action in your repo
 | `native/` | Audio pool fix and independent keyboard input module |
 | `patches/test-20261114/` | REFramework and 3S patches, source baselines and third-party licenses |
 | `support/` | F10 state recorder and documentation |
-| `launcher/` | Legacy C# launcher, installer and tests |
+| `launcher/` | Current DesktopLauncher UI, shared settings code, legacy launcher and tests |
 | `scripts/` | Build, installation and verification scripts |
 | `work/test_*.py` | Offline regression tests |
 | `work/checkpoints/`, `work/reframework-window-fix/` | Historical fixtures and window-hook tests, not current installation files |
+
+Build the current GUI with `scripts/Build-DesktopLauncher.ps1`. Use `Build-DesktopPackage.ps1 -PayloadPackage <verified package folder> -OutputDirectory <new folder>` to validate and assemble a complete package. Run `Test-DesktopLauncher.ps1 -Launcher <EXE path>` in Windows PowerShell 5.1 for isolated install, restore and settings tests.
 
 Building the legacy launcher requires Windows, Windows PowerShell 5.1 and a .NET Framework 4.x C# compiler:
 

@@ -10,14 +10,20 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-[assembly: System.Reflection.AssemblyTitle("鬼泣5 切人Mod 正式版")]
+[assembly: System.Reflection.AssemblyTitle("DMC5 Character Switch")]
 [assembly: System.Reflection.AssemblyProduct("DMC5 Character Switch")]
+#if DESKTOP_GUI
+[assembly: System.Reflection.AssemblyVersion("1.0.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersion("1.0.0+desktop-gui")]
+#else
 [assembly: System.Reflection.AssemblyVersion("0.0.4.0")]
 [assembly: System.Reflection.AssemblyFileVersion("0.0.4.0")]
 #if SUPPORT_DIAGNOSTICS
 [assembly: System.Reflection.AssemblyInformationalVersion("pre-0.0.4+release-50.support-50.1")]
 #else
 [assembly: System.Reflection.AssemblyInformationalVersion("pre-0.0.4+release-50-native-v-reload")]
+#endif
 #endif
 
 namespace Dmc5SwitchLauncher
