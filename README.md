@@ -1,57 +1,81 @@
 # DMC5 Character Switch / 鬼泣 5 三人切换 Mod
 
+[中文](#中文) · [English](#english)
+
+## 中文
+
 Windows 平台的尼禄、但丁、维吉尔实时切换 Mod，使用 REFramework 和游戏原生资源。
-当前发布：**20261114-test2（测试版）**，包含适配版 3S 1.24h 与中英双语安装器。
 
-[GitHub 下载最新修复包](https://github.com/dubian-che/dmc5-character-switch/releases/tag/20261114-test2)
+**当前版本：[20261114-test2（测试版）](https://github.com/dubian-che/dmc5-character-switch/releases/tag/20261114-test2)**。安装包包含适配版 **SSSiyan / 3S 1.24h**、REFramework、声音池修复及中英双语安装器。
 
-解压安装包，运行 `00-Setup.cmd`，按 **L** 切换中文 / English，按 **1** 安装。安装前退出游戏。
-安装器核验已测试游戏程序版本，自动备份并保留已有按键与 3S 设置。诊断导出按 **2**，恢复按 **3**。
+### 安装与恢复
 
-最新修复包括 EX 服装跨场景保留、但丁首次切入的魔剑幻影剑蓄力、32 MiB 声音池、V 的世界与血宫残留 V、3S 启动和菜单共存。
-首次幻影剑修复已有实测和 F10 记录验证；服装修复获初步实测确认。并非所有 3S 功能均已验证，曾出现的 M3 结算闪退仍需继续观察。
+1. 从 Release 页面下载 `DMC5-Switch-3S-Test-20261114-fix2.zip`，完整解压。
+2. 完全退出游戏，运行 `00-Setup.cmd`。
+3. 按 **L** 即时切换中文 / English，无需回车；安装器记住语言选择。
+4. 按 **1** 安装，选择游戏目录中的 `DevilMayCry5.exe`，完成后从 Steam 启动游戏。
 
-`installer/` 为发布包安装器源码与清单；`patches/test-20261114/` 包含 REFramework、3S 修改及基线、许可证。
-发布 ZIP 中包含运行所需文件。安装器源码目录本身不含完整 payload，不能直接安装。
-**下方 C# 启动器是历史构建路径，其内嵌加载器并非本次已验证版本；不要用旧启动器覆盖 test2 安装。**
+安装器核验游戏程序版本和安装文件，自动备份被覆盖的文件，保留已有切人按键与 3S 设置。版本不匹配时会停止安装。退出游戏后按 **3** 可恢复；安装后文件若被改动，恢复会停止以保留修改。
 
-## 功能
+**不要使用旧 C# 启动器覆盖本测试包：其内嵌加载器不是本次已验证版本。**
 
-- 三人切换、原生 HUD 和技能列表跟随当前角色；启动器可配置切换按键。
-- 保留切换位置，管理后台角色的显示、输入和世界碰撞。
-- 后台角色每两秒回复一格血，保留后台回魔。
-- 血宫换层保存当前角色及资源、武器和机械手状态。
-- 切入角色随机播放已加载的挑衅语音，同角色三秒冷却。
-- 原生 V 关卡走隔离流程，不加入三人切换。
+### 操作
 
-本仓库不包含游戏文件、存档、个人配置、现场诊断记录或崩溃转储。
-REFramework 的 MIT 运行库及用于回归测试的旧运行库随源码提供，许可证见对应依赖目录。
+以下为新安装默认值，已有配置优先。
 
-## 构建
+| 按键 | 功能 |
+| --- | --- |
+| F5 / F6 | 下一角色 / 上一角色 |
+| F7 / F8 / F9 | 尼禄 / 但丁 / 维吉尔 |
+| 再按当前角色的指定键 | 返回上一个角色；没有历史则忽略 |
+| Delete | 打开 3S 菜单 |
+| Insert | 打开 REFramework |
+| F10 | 标记诊断现场 |
+| 手柄：挑衅 + LB / RB | 上一角色 / 下一角色 |
 
-需要 Windows、Windows PowerShell 5.1 和 .NET Framework 4.x C# 编译器。
-在仓库根目录运行：
+按住锁定切人时保留同一目标。手柄组合及其他按键见 [安装说明](installer/使用说明.txt)。不要开启 REFramework 的 **Graphics → Hide GUI**，否则游戏菜单会被隐藏。
+
+### 功能与本版修复
+
+- 三人实时切换，原生 HUD 和技能列表随当前角色更新；管理后台角色的输入、显示和碰撞。
+- 后台回血与回魔；血宫换层保留角色、资源、武器和机械手状态。
+- 修复首次切入但丁时魔剑幻影剑蓄力通道未初始化的问题，无需先切换武器；保留魔剑开刃蓄力。
+- 后台角色按游戏选人界面的服装选择加载，修正 EX 服装切场景后恢复默认的问题。
+- 32 MiB 声音池修复，处理多角色加载时的间歇缺声。
+- 保留“V 的世界”镜头、出招、退场及血宫清层 CG 残留 V 修复。
+- 包含 3S 与 REFramework 共存时的启动、画面提交链和菜单修复。
+
+首次幻影剑修复已有实测和 F10 记录验证；服装修复获初步实测确认。67 项自动检查通过，但不能替代实机验收。**并非所有 3S 功能、其他 Mod 组合或游戏版本均已验证。** 曾出现一次 M3 结算闪退，后续未稳定复现，仍需观察。
+
+### 反馈与诊断
+
+异常时按 **F10**，能暂停则暂停。运行 `00-Setup.cmd`，按 **2** 导出诊断 ZIP 到桌面；闪退后先导出再重启，避免日志被覆盖。
+
+反馈请注明关卡、角色、3S 开启的功能和最后操作。诊断包含日志、按键配置、角色状态和文件哈希，不包含存档或完整内存转储；日志可能含本机路径与用户名，请检查后再分享。工具不会自动上传。
+
+### 开发与源码
+
+| 路径 | 内容 |
+| --- | --- |
+| `outputs/DMC5CharacterSwitch/` | 15 个维护中的 Lua 模块，不是构建缓存 |
+| `installer/` | 双语安装器、发布清单和说明；不含完整 payload，不能直接安装 |
+| `native/` | 声音池修复与独立键盘输入模块 |
+| `patches/test-20261114/` | REFramework、3S 补丁、源码基线和第三方许可证 |
+| `support/` | F10 状态记录器和说明 |
+| `launcher/` | 历史 C# 启动器、安装器及测试 |
+| `scripts/` | 构建、安装和验证脚本 |
+| `work/test_*.py` | 离线回归测试 |
+| `work/checkpoints/`、`work/reframework-window-fix/` | 旧版本夹具与窗口修复测试材料，不用于当前安装 |
+
+历史启动器构建需要 Windows、Windows PowerShell 5.1 和 .NET Framework 4.x C# 编译器：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Launcher.ps1
 ```
 
-输出在 `dist/DMC5切人启动器/`。运行启动器并选择游戏目录，关闭游戏后安装或更新。
-安装器先备份已有同名文件，再完整部署 15 个 Lua 模块与固定版本加载器，并逐项校验。原按键配置保留；其他插件文件不被删除，但其与新版加载器的兼容性需实测。
-本仓库不分发游戏本体，也不要求修改游戏 PAK。
+输出为 `dist/DMC5切人启动器/`；`-DiagnosticBuild` 构建历史诊断启动器，`-TestBuild` 启用测试。此流程不重建当前 Release 的全部已验证运行库。原生模块使用 `scripts/Build-AudioPoolFix.ps1` 和 `scripts/Build-KeyboardInput.ps1`，需要 Visual Studio C++ 工具链。
 
-## 可选远端诊断版
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Launcher.ps1 -DiagnosticBuild
-```
-
-输出在 `dist/DMC5远端诊断启动器/`。该版本可安装只读记录器，导出最近 30 分钟的诊断 ZIP 到桌面。
-记录从启用并重启游戏后开始，不会补录此前历史。当前发布包支持 F10 现场标记（旧工具文档可能仍写 F8）、问题描述及可选的游戏截图。
-导出包可能包含游戏日志、相关系统错误和崩溃信息，请按实际需要提供给维护者。
-正式构建不包含该记录器。详情见 [诊断版使用说明](support/使用说明.txt)。
-
-## 离线检查
+项目历史综合检查入口：
 
 ```powershell
 python -m venv .venv
@@ -59,31 +83,111 @@ python -m venv .venv
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Project.ps1 -Python .\.venv\Scripts\python.exe
 ```
 
-模拟测试与安装器测试不启动游戏，不能替代实机验收。诊断启动器另有条件编译测试：
+该入口包含历史启动器构建及验证；当前发布包的安装清单见 `installer/manifest.json`，文件校验值随 Release 提供。
+
+### 来源与许可
+
+- [REFramework](https://github.com/praydog/REFramework)：基于 `d4611aef1d63effd3a736bdf9404ea702428017d`。
+- [SSSiyan](https://github.com/youwereeatenbyalid/sssiyan_trainer)：基于 `3aa32ee018048cd8ac01f6acc7c52aca7eb83c36`（1.24h）。
+
+本包使用本地适配版本，并非上游官方二进制；补丁和第三方许可证见 `patches/test-20261114/`。项目自有源码尚未指定开源许可证，第三方代码适用各自许可证。
+
+仓库不包含游戏本体、存档、个人配置、现场诊断记录或崩溃转储；不要求修改游戏 PAK。
+
+[返回顶部](#dmc5-character-switch--鬼泣-5-三人切换-mod) · [English](#english)
+
+---
+
+## English
+
+A Windows mod for switching between Nero, Dante and Vergil in real time, using REFramework and the game's native resources.
+
+**Current release: [20261114-test2 (prerelease)](https://github.com/dubian-che/dmc5-character-switch/releases/tag/20261114-test2).** The package includes adapted builds of **SSSiyan / 3S 1.24h** and REFramework, the audio pool fix, and a Chinese/English installer.
+
+### Installation and restoration
+
+1. Download `DMC5-Switch-3S-Test-20261114-fix2.zip` from the Release page and extract the entire archive.
+2. Exit the game completely and run `00-Setup.cmd`.
+3. Press **L** to switch Chinese / English instantly, without Enter. The installer remembers your choice.
+4. Press **1** to install, select `DevilMayCry5.exe` in your game folder, then launch the game through Steam.
+
+The installer verifies the game executable and package files, backs up replaced files, and preserves existing character-switch bindings and 3S settings. An unsupported executable stops installation. To restore, exit the game and press **3**. Restoration stops if installed files have subsequently changed, preserving those changes.
+
+**Do not overwrite this package with the old C# launcher: its embedded loader is not the version verified for this release.**
+
+### Controls
+
+These are defaults for a new installation. Existing settings take priority.
+
+| Key | Action |
+| --- | --- |
+| F5 / F6 | Next / previous character |
+| F7 / F8 / F9 | Nero / Dante / Vergil |
+| Press the active character's key again | Return to the previous character; ignored if there is no history |
+| Delete | Open the 3S menu |
+| Insert | Open REFramework |
+| F10 | Mark a diagnostic event |
+| Controller: Taunt + LB / RB | Previous / next character |
+
+Holding lock-on while switching preserves the same target. See the [installation guide](installer/README-English.txt) for additional controls. Do not enable **Graphics → Hide GUI** in REFramework, as it hides game menus.
+
+### Features and fixes
+
+- Switch between three characters with native HUD and skill-list updates; manage inactive characters' input, visibility and collision.
+- Regenerate inactive characters' health and DT; preserve character selection, resources, weapons and Devil Breakers between Bloody Palace floors.
+- Initialize Dante's missing Devil Sword Dante summoned-sword charge channel on first activation, without cycling weapons; preserve the existing sword-expansion charge fix.
+- Load reserve characters with costumes selected in the game's character-selection screen, fixing EX costumes reverting after scene changes.
+- Expand the audio pool to 32 MiB to address intermittent missing sounds when multiple characters are loaded.
+- Preserve World of V camera, execution and cleanup fixes, including the stray V model in Bloody Palace clear cinematics.
+- Include startup, presentation-chain and menu fixes for 3S and REFramework coexistence.
+
+The first-activation summoned-sword fix was verified in game and in F10 records; costume preservation has preliminary user confirmation. All 67 automated checks passed, but these do not replace gameplay testing. **Not every 3S feature, other mod combination or game version has been validated.** One M3 results-screen crash has not been consistently reproduced and remains under observation.
+
+### Feedback and diagnostics
+
+When a problem occurs, press **F10** and pause if possible. Run `00-Setup.cmd` and press **2** to export a diagnostic ZIP to Desktop. After a crash, export before restarting to avoid overwriting logs.
+
+Include the mission, character, enabled 3S features and last action in your report. Diagnostics contain logs, bindings, character state and file hashes, but no saves or full memory dumps. Logs may contain local paths and usernames; review them before sharing. Nothing is uploaded automatically.
+
+### Development and source layout
+
+| Path | Contents |
+| --- | --- |
+| `outputs/DMC5CharacterSwitch/` | 15 maintained Lua modules, not a build cache |
+| `installer/` | Bilingual installer, release manifest and guides; incomplete without the release payload |
+| `native/` | Audio pool fix and independent keyboard input module |
+| `patches/test-20261114/` | REFramework and 3S patches, source baselines and third-party licenses |
+| `support/` | F10 state recorder and documentation |
+| `launcher/` | Legacy C# launcher, installer and tests |
+| `scripts/` | Build, installation and verification scripts |
+| `work/test_*.py` | Offline regression tests |
+| `work/checkpoints/`, `work/reframework-window-fix/` | Historical fixtures and window-hook tests, not current installation files |
+
+Building the legacy launcher requires Windows, Windows PowerShell 5.1 and a .NET Framework 4.x C# compiler:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Launcher.ps1 -DiagnosticBuild -TestBuild
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Launcher.ps1
 ```
 
-## 源码结构
+Output is written to `dist/DMC5切人启动器/`. Use `-DiagnosticBuild` for the legacy diagnostic launcher and `-TestBuild` to enable tests. This workflow does not rebuild every verified runtime in the current release. Native modules use `scripts/Build-AudioPoolFix.ps1` and `scripts/Build-KeyboardInput.ps1`, requiring the Visual Studio C++ toolchain.
 
-| 路径 | 内容 |
-| --- | --- |
-| `outputs/DMC5CharacterSwitch` | 15 个正式 Lua 模块；这是维护源码，不是构建缓存 |
-| `launcher` | C# 启动器、安装器、条件编译测试和诊断导出器 |
-| `scripts` | 构建、安装及发布验证脚本 |
-| `support` | 可选只读记录器和说明 |
-| `work/test_*.py` | 离线回归测试 |
-| `work/checkpoints` | 测试实际引用的旧源码/运行库夹具，不用于安装 |
-| `work/reframework-window-fix` | REFramework 窗口消息链修补、原始/修改源码及 Win32 回归测试 |
+The project's legacy comprehensive check entry point is:
 
-## 依赖与范围
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-test.txt
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Project.ps1 -Python .\.venv\Scripts\python.exe
+```
 
-REFramework 上游：[praydog/REFramework](https://github.com/praydog/REFramework)，基于提交
-`d4611aef1d63effd3a736bdf9404ea702428017d` 做本地窗口消息链修补。
-固定 DLL 的 SHA-256：`CBA7C25F57D199E2FDFB73EB3BA8BA5BAF028D453D428498796E85FBDD75CB0F`。
-这不是上游官方二进制；补丁及许可证随仓库提供。
+This entry point includes legacy launcher builds and validation. The current package manifest is `installer/manifest.json`; checksums are attached to the Release.
 
-本 Mod 面向特定 DMC5/REFramework 环境，其他 Mod、游戏版本与关卡流程仍需实测。
-声音间歇缺失、个别原生崩溃的原因尚未完全确认；幻影剑特效可能在切换后残留。
-未为项目自有源码指定开源许可证；第三方代码适用各自许可证。
+### Sources and licensing
+
+- [REFramework](https://github.com/praydog/REFramework), based on `d4611aef1d63effd3a736bdf9404ea702428017d`.
+- [SSSiyan](https://github.com/youwereeatenbyalid/sssiyan_trainer), based on `3aa32ee018048cd8ac01f6acc7c52aca7eb83c36` (1.24h).
+
+The package contains locally adapted builds, not official upstream binaries. Patches and third-party licenses are in `patches/test-20261114/`. No open-source license has yet been assigned to project-owned code; third-party code remains subject to its respective licenses.
+
+The repository excludes the game itself, saves, personal settings, live diagnostic records and crash dumps. Modifying game PAK files is not required.
+
+[中文](#中文) · [Back to English](#english)
