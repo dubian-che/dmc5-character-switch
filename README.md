@@ -6,18 +6,18 @@
 
 Windows 平台的尼禄、但丁、维吉尔实时切换 Mod，使用 REFramework 和游戏原生资源。
 
-**当前版本：[20261114-test2（测试版）](https://github.com/dubian-che/dmc5-character-switch/releases/tag/20261114-test2)**。安装包包含适配版 **SSSiyan / 3S 1.24h**、REFramework、声音池修复及中英双语安装器。
+**当前版本：[1.0.0](https://github.com/dubian-che/dmc5-character-switch/releases/tag/1.0.0)**。安装包包含适配版 **SSSiyan / 3S 1.24h**、REFramework、声音池修复及中英双语安装器。
 
 ### 安装与恢复
 
-1. 从 Release 页面下载 `DMC5-Switch-3S-Test-20261114-fix2.zip`，完整解压。
+1. 从 Release 页面下载 `DMC5-Character-Switch-1.0.0.zip`，完整解压。
 2. 完全退出游戏，运行 `00-Setup.cmd`。
 3. 按 **L** 即时切换中文 / English，无需回车；安装器记住语言选择。
 4. 按 **1** 安装，选择游戏目录中的 `DevilMayCry5.exe`，完成后从 Steam 启动游戏。
 
 安装器核验游戏程序版本和安装文件，自动备份被覆盖的文件，保留已有切人按键与 3S 设置。版本不匹配时会停止安装。退出游戏后按 **3** 可恢复；安装后文件若被改动，恢复会停止以保留修改。
 
-**不要使用旧 C# 启动器覆盖本测试包：其内嵌加载器不是本次已验证版本。**
+**不要使用旧 C# 启动器覆盖本安装包：其内嵌加载器不是本次已验证版本。**
 
 ### 操作
 
@@ -102,11 +102,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Project.ps1 -
 
 A Windows mod for switching between Nero, Dante and Vergil in real time, using REFramework and the game's native resources.
 
-**Current release: [20261114-test2 (prerelease)](https://github.com/dubian-che/dmc5-character-switch/releases/tag/20261114-test2).** The package includes adapted builds of **SSSiyan / 3S 1.24h** and REFramework, the audio pool fix, and a Chinese/English installer.
+**Current release: [1.0.0](https://github.com/dubian-che/dmc5-character-switch/releases/tag/1.0.0).** The package includes adapted builds of **SSSiyan / 3S 1.24h** and REFramework, the audio pool fix, and a Chinese/English installer.
 
 ### Installation and restoration
 
-1. Download `DMC5-Switch-3S-Test-20261114-fix2.zip` from the Release page and extract the entire archive.
+1. Download `DMC5-Character-Switch-1.0.0.zip` from the Release page and extract the entire archive.
 2. Exit the game completely and run `00-Setup.cmd`.
 3. Press **L** to switch Chinese / English instantly, without Enter. The installer remembers your choice.
 4. Press **1** to install, select `DevilMayCry5.exe` in your game folder, then launch the game through Steam.

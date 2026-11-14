@@ -1,4 +1,4 @@
-﻿DMC5 Switch + 3S test2 - bilingual fixes release
+DMC5 Character Switch 1.0.0 - bilingual installer
 
 Extract the entire ZIP. Run 00-Setup.cmd.
 Press L once to switch Chinese / English. No Enter is needed. The selection is remembered in language.txt.
