@@ -6,7 +6,11 @@
 
 Windows 平台的尼禄、但丁、维吉尔实时切换 Mod，使用 REFramework 和游戏原生资源。
 
-**当前版本：[1.0.0](https://github.com/dubian-che/dmc5-character-switch/releases/tag/1.0.0)**。安装包包含适配版 **SSSiyan / 3S 1.24h**、REFramework、声音池修复及中英双语安装器。
+**当前版本：1.0.0**。安装包包含适配版 **SSSiyan / 3S 1.24h**、REFramework、声音池修复及中英双语安装器。
+
+[GitHub 下载](https://github.com/dubian-che/dmc5-character-switch/releases/tag/1.0.0) · [Gitee 发行版（国内入口）](https://gitee.com/gutssss/dmc5-character-switch/releases)
+
+两个平台的发行版附件分别维护，仓库同步不会自动上传安装包。请确认下载页列出 **1.0.0** 及 `DMC5-Character-Switch-1.0.0.zip`；若 Gitee 尚未列出，请先使用 GitHub。
 
 ### 安装与恢复
 
@@ -102,7 +106,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-Project.ps1 -
 
 A Windows mod for switching between Nero, Dante and Vergil in real time, using REFramework and the game's native resources.
 
-**Current release: [1.0.0](https://github.com/dubian-che/dmc5-character-switch/releases/tag/1.0.0).** The package includes adapted builds of **SSSiyan / 3S 1.24h** and REFramework, the audio pool fix, and a Chinese/English installer.
+**Current release: 1.0.0.** The package includes adapted builds of **SSSiyan / 3S 1.24h** and REFramework, the audio pool fix, and a Chinese/English installer.
+
+[Download on GitHub](https://github.com/dubian-che/dmc5-character-switch/releases/tag/1.0.0) · [Gitee releases (China)](https://gitee.com/gutssss/dmc5-character-switch/releases)
+
+Release assets are maintained separately; mirroring the repository does not upload installers. Check that the page lists **1.0.0** and `DMC5-Character-Switch-1.0.0.zip`. If Gitee does not yet list it, use GitHub.
 
 ### Installation and restoration
 
